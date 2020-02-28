@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+
+import csv
+import xmlrpclib
+import multiprocessing as mp
+
+URL = "http://localhost:8069/xmlrpc/object"
+DB = 'price_paper'
+UID = 2
+PSW = 'confianzpricepaper'
+WORKERS = 10
+
+
+# =================================== C U S T O M E R ========================================
+
+def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids):
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    while data_pool:
+            customer_code = ''
+        # try:
+            data = data_pool.pop()
+            customer_code = data['CUSTOMER-CODE'].strip()
+            city,state = data['CITY-STATE'].strip().split(',')
+            state = state.strip()
+            bill_with_goods = True
+            if data['BWG'] == 'N':
+                bill_with_goods = False
+            vals = {
+                'name': data['1ST-NAME'].strip().title(),
+                'corp_name': data['2ND-NAME'].strip().title(),
+                'street': data['STREET'].strip(),
+                'city': city.title(),
+                'active': True,
+                'customer': True,
+                'zip': data['ZIP-CODE'],
+                'phone': data['PHONE-NO'],
+                'customer_code': customer_code,
+                'credit_limit':data['CREDIT-LIMIT'],
+                'vat':data['RESALE-NO'].strip(),
+                'customer_ranking':data['CUSTOMER-RANK'].strip(),
+                'category_id': [(6,0,[categ_ids.get(data.get('CLASS-CODE').strip())])],
+                'property_account_position_id':fiscal_ids.get(data.get('TAX-AUTH-CODE').strip()),
+                'property_payment_term_id': term_ids.get(data.get('TERM-CODE').strip()),
+                'company_type': 'company',
+                'bill_with_goods':bill_with_goods,
+                'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE').strip()),
+            }
+
+            res = write_ids.get(customer_code, [])
+            if res:
+                sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
+                print(pid, 'UPDATE - CUSTOMER', res)
+            else:
+                vals['commission_percentage_ids'] = [(0, 0 ,{'sale_person_id':sale_rep_ids.get(data.get('SALESMAN-CODE').strip()),
+                  'rule_id': rule_ids.get(sale_rep_ids.get(data.get('SALESMAN-CODE').strip()))})]
+                res = sock.execute(DB, UID, PSW, 'res.partner', 'create', vals)
+                print(pid, 'CREATE - CUSTOMER', res)
+        # except:
+        #     error_ids.apppend(customer_code)
+
+
+def sync_customers():
+    manager = mp.Manager()
+    data_pool = manager.list()
+    error_ids = manager.list()
+    write_ids = manager.dict()
+    categ_ids = manager.dict()
+    term_ids = manager.dict()
+    fiscal_ids = manager.dict()
+    carrier_ids = manager.dict()
+    process_Q = []
+
+    fp = open('rclcust1.csv', 'rb')
+    csv_reader = csv.DictReader(fp)
+
+    customer_codes = []
+    for vals in csv_reader:
+        data_pool.append(vals)
+        customer_code = vals['CUSTOMER-CODE'].strip()
+        customer_codes.append(customer_code)
+
+    fp.close()
+
+    domain = [('customer_code', 'in', customer_codes)]
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+
+    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', domain, ['customer_code'])
+    write_ids = {rec['customer_code']: rec['id']  for rec in res}
+
+    fiscal = sock.execute(DB, UID, PSW, 'account.fiscal.position', 'search_read', [], ['id','code'])
+    fiscal_ids = {rec['code']: rec['id']  for rec in fiscal}
+
+    categ = sock.execute(DB, UID, PSW, 'res.partner.category', 'search_read', [], ['id','code'])
+    categ_ids = {rec['code']: rec['id']  for rec in categ}
+
+    terms = sock.execute(DB, UID, PSW, 'account.payment.term', 'search_read', [('order_type', '=', 'sale')], ['id','code'])
+    term_ids = {rec['code']: rec['id']  for rec in terms}
+
+    carriers = sock.execute(DB, UID, PSW, 'delivery.carrier', 'search_read', [], ['id','name'])
+    carrier_ids = {rec['name']: rec['id']  for rec in carriers}
+
+    sale_rep = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', [('is_sales_person', '=', True ),'|', ('active', '=', False), ('active', '=', True)], ['id','sales_person_code'])
+    sale_rep_ids = {rec['sales_person_code']: rec['id']  for rec in sale_rep}
+
+    rules = sock.execute(DB, UID, PSW, 'commission.rules', 'search_read', [], ['id','sales_person_id'])
+    rule_ids = {rule['sales_person_id'][0]: rule['id'] for rule in rules}
+
+
+
+    res = None
+    customer_codes = None
+
+    for i in range(WORKERS):
+        pid = "Worker-%d" % (i + 1)
+        worker = mp.Process(name=pid, target=update_customer, args=(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids))
+        process_Q.append(worker)
+        worker.start()
+
+    for worker in process_Q:
+        worker.join()
+
+
+if __name__ == "__main__":
+
+    # PARTNER
+    sync_customers()
