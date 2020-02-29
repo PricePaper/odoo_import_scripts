@@ -1,1 +1,10 @@
 *.csv
+/venv/
+.idea/.gitignore
+.idea/codeStyles/
+.idea/dbnavigator.xml
+.idea/inspectionProfiles/
+.idea/misc.xml
+.idea/modules.xml
+.idea/odoo_import_scripts.iml
+.idea/vcs.xml
