@@ -4,11 +4,11 @@ import csv
 import multiprocessing as mp
 import xmlrpclib
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'price_paper'
+URL = "https://ean-linux.pricepaper.com/xmlrpc/object"
+DB = 'pricepaper'
 UID = 2
 PSW = 'confianzpricepaper'
-WORKERS = 10
+WORKERS = 64
 
 
 # ==================================== SALE ORDER ====================================
@@ -16,43 +16,45 @@ WORKERS = 10
 def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
-        # try:
-        data = data_pool.pop()
-        order_no = data.get('ref', '')
-        order_list = data.get('orders', [])
+        try:
+            data = data_pool.pop()
+            order_no = data.get('ref', '')
+            order_list = data.get('orders', [])
 
-        partner_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
-        term_id = term_ids.get(order_list[0].get('TERM-CODE', '').strip())
-        if not partner_id or not term_id:
-            error_ids.append(order_no)
-            continue
+            partner_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            term_id = term_ids.get(order_list[0].get('TERM-CODE', '').strip())
+            if not partner_id or not term_id:
+                error_ids.append(order_no)
+                continue
 
-        inv_no = ','.join(order.get('INVOICE-NO', '').strip() for order in order_list)
-        vals = {
-            'name': order_list[0].get('ORDER-NO', '').strip(),
-            'partner_id': partner_id,
-            'note': inv_no,
-            'payment_term_id': term_id,
-            'date_order': order_list[0].get('ORDER-DATE', '').strip(),
-        }
+            inv_no = ','.join(order.get('INVOICE-NO', '').strip() for order in order_list)
+            vals = {
+                'name': order_list[0].get('ORDER-NO', '').strip(),
+                'partner_id': partner_id,
+                'note': inv_no,
+                'payment_term_id': term_id,
+                'date_order': order_list[0].get('ORDER-DATE', '').strip(),
+            }
 
-        # Check if order exists
-        res = sock.execute(DB, UID, PSW, 'search_read', [('name', '=', vals['name'])])
-        if res:
-            # If order exists, remove followers to prevent Odoo from trying to duplicate
-            message_partner_ids = res[0]['message_partner_ids']
-            sock.execute(DB, UID, PSW, 'mail.followers', 'unlink', message_partner_ids)
-            # Update the DB
-            sock.execute(DB, UID, PSW, 'sale.order', 'write', res, vals)
-            print(pid, 'UPDATE - SALE ORDER', res)
-        else:
-            res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
-            print(pid, 'CREATE - SALE ORDER', res, order_no)
-    # except:
-    #     if order_no:
-    #         error_ids.append(order_no)
-    #     break
-
+            # Check if order exists
+            res = sock.execute(DB, UID, PSW, 'sale.order','search_read', [('name', '=', order_no)])
+            if res:
+                try:
+                    # If order exists, remove followers to prevent Odoo from trying to duplicate
+                    message_partner_ids = res[0]['message_partner_ids']
+                    if message_partner_ids:
+                        sock.execute(DB, UID, PSW, 'mail.followers', 'unlink', message_partner_ids)
+                except:
+                    continue
+                # Update the DB
+                sock.execute(DB, UID, PSW, 'sale.order', 'write', res, vals)
+                print(pid, 'UPDATE - SALE ORDER', res)
+            else:
+                res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
+                print(pid, 'CREATE - SALE ORDER', res, order_no)
+        except:
+            data_pool.append(data)
+        continue
 
 def sync_sale_orders():
     manager = mp.Manager()
@@ -92,7 +94,7 @@ def sync_sale_orders():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order,
-                            args=(pid, data_pool, error_ids, write_ids, partner_ids, term_ids))
+                            args=(pid, data_pool, error_ids, partner_ids, term_ids))
         process_Q.append(worker)
         worker.start()
 
