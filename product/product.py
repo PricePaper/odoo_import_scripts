@@ -5,7 +5,7 @@ import xmlrpclib
 import multiprocessing as mp
 
 URL = "http://localhost:8069/xmlrpc/object"
-DB = 'price_paper'
+DB = 'pricepaper'
 UID = 2
 PSW = 'confianzpricepaper'
 WORKERS = 10
