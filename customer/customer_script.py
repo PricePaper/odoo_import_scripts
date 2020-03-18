@@ -10,14 +10,21 @@ UID = 2
 PSW = 'confianzpricepaper'
 WORKERS = 10
 
+# URL = "http://localhost:8077/xmlrpc/object"
+# DB = 'price_paper_12'
+# UID = 2
+# PSW = 'admin'
+# WORKERS = 10
+
 
 # =================================== C U S T O M E R ========================================
 
-def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids):
+def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids, additional_salerep, error_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
+
+        try:
             customer_code = ''
-        # try:
             data = data_pool.pop()
             customer_code = data['CUSTOMER-CODE'].strip()
             city,state = data['CITY-STATE'].strip().split(',')
@@ -48,15 +55,21 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
 
             res = write_ids.get(customer_code, [])
             if res:
+                # continue
                 sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
                 print(pid, 'UPDATE - CUSTOMER', res)
             else:
                 vals['commission_percentage_ids'] = [(0, 0 ,{'sale_person_id':sale_rep_ids.get(data.get('SALESMAN-CODE').strip()),
                   'rule_id': rule_ids.get(sale_rep_ids.get(data.get('SALESMAN-CODE').strip()))})]
+                if customer_code in additional_salerep:
+                    vals['commission_percentage_ids'].append((0, 0 ,{'sale_person_id':sale_rep_ids.get(additional_salerep[customer_code]),
+                  'rule_id': rule_ids.get(sale_rep_ids.get(additional_salerep[customer_code]))}))
                 res = sock.execute(DB, UID, PSW, 'res.partner', 'create', vals)
+
                 print(pid, 'CREATE - CUSTOMER', res)
-        # except:
-        #     error_ids.apppend(customer_code)
+        except:
+
+            print(customer_code)
 
 
 def sync_customers():
@@ -68,10 +81,23 @@ def sync_customers():
     term_ids = manager.dict()
     fiscal_ids = manager.dict()
     carrier_ids = manager.dict()
+    additional_salerep = manager.dict()
+    sale_rep_ids = manager.dict()
+    rule_ids = manager.dict()
     process_Q = []
 
     fp = open('rclcust1.csv', 'rb')
     csv_reader = csv.DictReader(fp)
+
+    fp1 = open('rclcsms1.csv', 'rb')
+    csv_reader1 = csv.DictReader(fp1)
+
+    additional_salerep = {}
+    for vals in csv_reader1:
+        rep_code = vals.get('CUST-OV-SALESREP-2', '').strip()
+        customer_code = vals.get('CUSTOMER-CODE', False)
+        if rep_code:
+            additional_salerep[customer_code] = rep_code
 
     customer_codes = []
     for vals in csv_reader:
@@ -112,7 +138,7 @@ def sync_customers():
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_customer, args=(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids))
+        worker = mp.Process(name=pid, target=update_customer, args=(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids, additional_salerep, error_ids))
         process_Q.append(worker)
         worker.start()
 
