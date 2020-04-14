@@ -1,0 +1,3 @@
+- Change files symlink to point to csv data files
+- update import_scripts.conf to point to Odoo instance
+- run files in numerical order
