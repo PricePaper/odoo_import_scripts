@@ -1,13 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import xmlrpc.client
 import ssl
 import csv
 
-
-url = "http://localhost:8069/xmlrpc/object"
-db = 'pricepaper'
-pwd = 'confianzpricepaper'
-
+from scriptconfig import url, db, pwd
 
 socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())
 
@@ -18,9 +16,9 @@ categories = {categ['name']: categ['id'] for categ in categs}
 
 
 
-input_file = csv.DictReader(open("rclcust1.csv"))
+input_file = csv.DictReader(open("files/rclcust1.csv"))
 
-with open("Catg_ERROR.csv", "wb") as f:
+with open("Catg_ERROR.csv", "w") as f:
     vals={}
     for line in input_file:
         vals[line.get('CLASS-CODE').strip()] = 1

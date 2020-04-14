@@ -1,22 +1,20 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import xmlrpc.client
 import ssl
 import csv
 
-
-url = "http://localhost:8069/xmlrpc/object"
-db = 'pricepaper'
-pwd = 'confianzpricepaper'
-
+from scriptconfig import url, db, pwd
 
 socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())
 
 categories = socket.execute(db, 2, pwd, 'product.category', 'search_read', [], ['id','categ_code'])
 categories = {category['categ_code']: category['id'] for category in categories}
 
-input_file = csv.DictReader(open('ivinct.csv'))
+input_file = csv.DictReader(open('files/ivinct.csv'))
 
-with open("ERROR_ct.csv", "wb") as f:
+with open("ERROR_ct.csv", "w") as f:
     for line in input_file:
         try:
             vals={'categ_code': line.get('CATEGORY').strip(),

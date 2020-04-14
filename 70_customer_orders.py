@@ -1,14 +1,12 @@
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 import csv
+#from xmlrpc import client as xmlrpclib
 import xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== SALE ORDER ====================================
 
@@ -55,7 +53,7 @@ def sync_sale_orders():
     write_ids = manager.dict()
     process_Q = []
 
-    fp = open('omlhist1.csv', 'rb')
+    fp = open('files/omlhist1.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     orders = {}

@@ -1,14 +1,13 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+
 # -*- coding: utf-8 -*-
 
 import csv
 import xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== SALE ORDER LINE ====================================
 

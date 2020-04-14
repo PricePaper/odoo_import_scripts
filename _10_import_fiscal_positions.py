@@ -1,12 +1,12 @@
-
+#!/usr/bin/env python3
 import xmlrpc.client
 import ssl
 import csv
 
-
-url = "http://localhost:8069/xmlrpc/object"
-db = 'pricepaper'
-pwd = 'confianzpricepaper'
+from scriptconfig import url, db, pwd
+#url = "http://localhost:8069/xmlrpc/object"
+#db = 'pricepaper'
+#pwd = 'confianzpricepaper'
 
 
 socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())

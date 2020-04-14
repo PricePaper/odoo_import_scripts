@@ -1,14 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== Purchase ORDER ====================================
 
@@ -40,10 +37,11 @@ def update_purchase_order(pid, data_pool, error_ids, write_ids, partner_ids, ter
                 print(pid, 'UPDATE - SALE ORDER', res)
             else:
                 res = sock.execute(DB, UID, PSW, 'purchase.order', 'create', vals)
-                print(pid, 'CREATE - SALE ORDER', res, order_no)
+                print(pid, 'CREATE - PURCHASE ORDER', res, order_no)
             if not data_pool:
                 break
-        except:
+        except Exception as e:
+            print(e)
             break
 
 
@@ -54,7 +52,7 @@ def sync_purchase_orders():
     write_ids = manager.dict()
     process_Q = []
 
-    fp = open('polhist1.csv', 'rb')
+    fp = open('files/polhist1.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     for vals in csv_reader:

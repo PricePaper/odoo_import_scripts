@@ -1,15 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
-
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # =================================== PRICE LIST ========================================
 
@@ -88,11 +84,11 @@ def sync_price_list():
 
     process_Q = []
 
-    fp = open('omlphist.csv', 'rb')
-    fp1 = open('rclcust2.csv', 'rb')
+    fp = open('files/omlphist.csv', 'r')
+    fp1 = open('files/rclcust2.csv', 'r')
     csv_reader = csv.DictReader(fp)
     csv_reader1 = csv.DictReader(fp1)   #line.get('PRICING-ACCT-NO').strip()
-    fp2 = open('ivlitum1.csv', 'rb')
+    fp2 = open('files/ivlitum1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
 
     broken_uom = {}
@@ -184,7 +180,7 @@ def sync_partner_pricelist():
             lines = customer_price_list.setdefault(rec['partner_id'][0], [])
             lines.append(rec['id'])
 
-    fp1 = open('rclcust2.csv', 'rb')
+    fp1 = open('files/rclcust2.csv', 'r')
     csv_reader1 = csv.DictReader(fp1)
 
     shared_dict={}

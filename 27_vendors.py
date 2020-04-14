@@ -1,15 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
-
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # =================================== C U S T O M E R ========================================
 
@@ -38,10 +34,10 @@ def update_customer(pid, data_pool, write_ids, term_ids):
             res = write_ids.get(customer_code, [])
             if res:
                 sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
-                print(pid, 'UPDATE - CUSTOMER', res)
+                print(pid, 'UPDATE - VENDOR', res)
             else:
                 res = sock.execute(DB, UID, PSW, 'res.partner', 'create', vals)
-                print(pid, 'CREATE - CUSTOMER', res)
+                print(pid, 'CREATE - VENDOR', res)
         except:
             error_ids.apppend(customer_code)
 
@@ -57,7 +53,7 @@ def sync_customers():
     carrier_ids = manager.dict()
     process_Q = []
 
-    fp = open('aplvend1.csv', 'rb')
+    fp = open('files/aplvend1.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     customer_codes = []

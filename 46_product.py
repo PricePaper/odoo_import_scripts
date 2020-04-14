@@ -1,14 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'confianzpricepaper'
-WORKERS = 10
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== P R O D U C T S ====================================
 
@@ -53,8 +50,8 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids)
             else:
                 res = sock.execute(DB, UID, PSW, 'product.product', 'create', vals)
                 print(pid, 'CREATE - PRODUCT', res)
-        except:
-            print('exception')
+        except Exception as e:
+            print(e)
             break
 
 
@@ -68,7 +65,7 @@ def sync_products():
 
     process_Q = []
 
-    fp = open('iclitem1.csv', 'rb')
+    fp = open('files/iclitem1.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     default_codes = []

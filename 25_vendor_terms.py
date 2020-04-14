@@ -1,19 +1,13 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
 
-URL = "http://localhost:8069/xmlrpc/object"
-DB = 'pricepaper'
-UID = 2
-PSW = 'admin'
-WORKERS = 10
+from scriptconfig import URL, DB, UID, PSW, WORKERS
 
-
-# =================================== C U S T O M E R ========================================
-
-def update_customer_terms(pid, data_pool, write_ids, error_ids):
+def update_vendor_terms(pid, data_pool, write_ids, error_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -31,11 +25,11 @@ def update_customer_terms(pid, data_pool, write_ids, error_ids):
             res = write_ids.get(code, [])
             if res:
                 sock.execute(DB, UID, PSW, 'account.payment.term', 'write', res, vals)
-                print(pid, 'UPDATE - CUSTOMER TERM', res)
+                print(pid, 'UPDATE - VENDOR TERM', res)
             else:
-                vals['line_ids'] = [(0, 0, {'type': 'balance', 'days': int(data.get('TERM-NET-DUE', 0) or 0)})]
+                vals['line_ids'] = [(0, 0, {'type': 'balance', 'days': int(data.get('TERM-DAYS-DUE', 0) or 0)})]
                 res = sock.execute(DB, UID, PSW, 'account.payment.term', 'create', vals)
-                print(pid, 'CREATE - CUSTOMER TERM', res)
+                print(pid, 'CREATE - VENDOR TERM', res)
             if not data_pool:
                 break
         except:
@@ -50,7 +44,7 @@ def sync_terms():
     write_ids = manager.dict()
     process_Q = []
 
-    fp = open('rclterm1.csv', 'rb')
+    fp = open('files/aplterm1.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     for vals in csv_reader:
@@ -58,7 +52,7 @@ def sync_terms():
 
     fp.close()
 
-    domain = [('order_type', '=', 'sale')]
+    domain = [('order_type', '=', 'purchase')]
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
 
     res = sock.execute(DB, UID, PSW, 'account.payment.term', 'search_read', domain, ['id', 'code'])
@@ -70,7 +64,7 @@ def sync_terms():
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_customer_terms, args=(pid, data_pool, write_ids, error_ids))
+        worker = mp.Process(name=pid, target=update_vendor_terms, args=(pid, data_pool, write_ids, error_ids))
         process_Q.append(worker)
         worker.start()
 

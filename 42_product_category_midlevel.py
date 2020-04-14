@@ -1,14 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import xmlrpc.client
 import ssl
 import csv
 
-url = "http://localhost:8069/xmlrpc/object"
-db = 'pricepaper'
-pwd = 'confianzpricepaper'
+from scriptconfig import url, db, pwd
 
-
-input_file = 'ivinmj.csv'
+input_file = 'files/ivinmj.csv'
 
 
 socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())
@@ -19,7 +18,7 @@ categories = {category['categ_code']: category['id'] for category in categories}
 
 input_file = csv.DictReader(open(input_file))
 
-with open("ERROR_mj.csv", "wb") as f, open("parent_missing_mj.csv", "wb") as f1:
+with open("ERROR_mj.csv", "w") as f, open("parent_missing_mj.csv", "w") as f1:
     for line in input_file:
         if line.get('CATEGORY').strip() in categories:
             try:

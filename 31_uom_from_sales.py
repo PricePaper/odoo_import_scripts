@@ -1,19 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import xmlrpc.client
 import ssl
 import csv
 
 
-
-url = "http://localhost:8069/xmlrpc/object"
-db = 'pricepaper'
-pwd = 'confianzpricepaper'
-
+from scriptconfig import url, db, pwd
 
 socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())
 
 
 
-input_file = csv.DictReader(open("omlhist2.csv"))
+input_file = csv.DictReader(open("files/omlhist2.csv"))
 
 uoms = socket.execute(db, 2, pwd, 'uom.uom', 'search_read', [], ['id','name'])
 uoms = {uom['name']: uom['id'] for uom in uoms}
