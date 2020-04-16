@@ -1,10 +1,10 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpclib
+import xmlrpc.client as xmlrpclib
 import multiprocessing as mp
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
@@ -63,7 +63,7 @@ def sync_sale_order_lines():
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['note'])
     order_ids = {inv_no: rec['id']  for rec in res for inv_no in (rec['note'] or '').split(',')}
 
-    fp = open('omlhist2.csv', 'rb')
+    fp = open('files/omlhist2.csv', 'r')
     csv_reader = csv.DictReader(fp)
     print('Opened File')
 
