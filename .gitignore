@@ -8,3 +8,5 @@
 .idea/modules.xml
 .idea/odoo_import_scripts.iml
 .idea/vcs.xml
+.idea/
+*.pyc

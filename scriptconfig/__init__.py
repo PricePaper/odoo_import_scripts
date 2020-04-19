@@ -7,7 +7,7 @@ URL = config['url']
 DB = config['db']
 UID = config['uid']
 PSW = config['password']
-WORKERS = int(config['workers'])
+WORKERS: int = int(config['workers'])
 
 url = URL
 db = DB
