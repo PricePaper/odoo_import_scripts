@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import csv
-from xmlrpc import client as xmlrpclib
 import multiprocessing as mp
+from xmlrpc import client as xmlrpclib
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+
 
 # ==================================== P R O D U C T S ====================================
 
@@ -19,29 +20,29 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids)
             code = str(data.get('ITEM-STOCK-UOM')).strip() + '_' + str(data.get('ITEM-QTY-IN-STOCK-UM')).strip()
             active = True
             purchase_ok = True
-            if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
-                if float(data.get('ITEM-QTY-ON-HAND')) == 0:
-                    active = False
-                elif float(data.get('ITEM-QTY-ON-HAND')) == 0:
-                    purchase_ok = False,
+            #  Comment out because inactive items break order imports
+            # # # # if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
+            # # #     purchase_ok = False,
+            # #     if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
+            #         active = False
 
-            vals={'name': data.get('ITEM-DESC').strip().title(),
-                  'description_sale': data.get('ITEM-DESC').strip().lower(),
-                  'description_purchase': data.get('ITEM-DESCR2').strip().lower(),
-                  'default_code': default_code,
-                  'categ_id': category_ids.get(data.get('PROD-CODE').strip()),
-                  'active': active,
-                  'type': 'product',
-                  # 'burden_percent': data.get('ITEM-BURDEN-PERCENT').strip(),
-                  # 'standard_price':data.get('ITEM-UNIT-COST'),
-                  'sale_ok': True,
-                  'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
-                  'purchase_ok': purchase_ok,
-                  'sale_uoms': [(6, 0, [uom_ids.get(code)])],
-                  'uom_id': uom_ids.get(code),
-                  'uom_po_id': uom_ids.get(code),
-                  'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
-                  }
+            vals = {'name': data.get('ITEM-DESC').strip().title(),
+                    'description_sale': data.get('ITEM-DESC').strip().lower(),
+                    'description_purchase': data.get('ITEM-DESCR2').strip().lower(),
+                    'default_code': default_code,
+                    'categ_id': category_ids.get(data.get('PROD-CODE').strip()),
+                    'active': active,
+                    'type': 'product',
+                    # 'burden_percent': data.get('ITEM-BURDEN-PERCENT').strip(),
+                    # 'standard_price':data.get('ITEM-UNIT-COST'),
+                    'sale_ok': True,
+                    'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
+                    'purchase_ok': purchase_ok,
+                    'sale_uoms': [(6, 0, [uom_ids.get(code)])],
+                    'uom_id': uom_ids.get(code),
+                    'uom_po_id': uom_ids.get(code),
+                    'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
+                    }
 
             res = write_ids.get(default_code, [])
             if res:
@@ -50,6 +51,7 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids)
             else:
                 res = sock.execute(DB, UID, PSW, 'product.product', 'create', vals)
                 print(pid, 'CREATE - PRODUCT', res)
+
         except Exception as e:
             print(e)
             break
@@ -79,22 +81,23 @@ def sync_products():
     domain = [('default_code', 'in', default_codes), '|', ('active', '=', False), ('active', '=', True)]
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code'])
-    write_ids = {rec['default_code']: rec['id']  for rec in res}
+    write_ids = {rec['default_code']: rec['id'] for rec in res}
 
-    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id','name'])
+    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
     uom_ids = {uom['name']: uom['id'] for uom in uoms}
 
-    categories = sock.execute(DB, UID, PSW, 'product.category', 'search_read', [], ['id','categ_code'])
+    categories = sock.execute(DB, UID, PSW, 'product.category', 'search_read', [], ['id', 'categ_code'])
     category_ids = {category['categ_code']: category['id'] for category in categories}
 
     res = None
     default_codes = None
-    uoms= None
+    uoms = None
     categories = None
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_product, args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids))
+        worker = mp.Process(name=pid, target=update_product,
+                            args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids))
         process_Q.append(worker)
         worker.start()
 
@@ -103,8 +106,5 @@ def sync_products():
 
 
 if __name__ == "__main__":
-
-
-
     # PRODUCTS
     sync_products()

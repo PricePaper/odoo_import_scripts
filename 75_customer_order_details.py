@@ -4,22 +4,26 @@
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpc.client as xmlrpclib
 import multiprocessing as mp
+import xmlrpc.client as xmlrpclib
+
+from odoo.exceptions import ValidationError
+from psycopg2.extensions import TransactionRollbackError
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+
 
 # ==================================== SALE ORDER LINE ====================================
 
 def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
-        # try:
+        try:
             data = data_pool.pop()
             order_id = data.get('order_id')
-            order_lines = sock.execute(DB, UID, PSW, 'sale.order.line', 'search_read', [('order_id','=',order_id)], ['product_id', 'product_uom'])
-            order_line_ids = {rec['product_id'][0]: rec['product_uom'][0]  for rec in order_lines}
-
+            order_lines = sock.execute(DB, UID, PSW, 'sale.order.line', 'search_read', [('order_id', '=', order_id)],
+                                       ['product_id', 'product_uom'])
+            order_line_ids = {rec['product_id'][0]: rec['product_uom'][0] for rec in order_lines}
 
             for line in data.get('lines', []):
                 product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
@@ -34,21 +38,26 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                     continue
 
                 vals = {
-                        'order_id': order_id,
-                        'product_id': product_id,
-                        'name': line.get('ITEM-DESC').strip(),
-                        'price_unit': line.get('PRICE-DISCOUNTED').strip(),
-                        'product_uom_qty': line.get('QTY-ORDERED').strip(),
-                        'is_last':False,
-                        'working_cost':line.get('TRUE-FIXED-COST').strip(),
-                        'lst_price':line.get('PRICE-DISCOUNTED').strip(),
-                        'product_uom': code,
-                        }
-
+                    'order_id': order_id,
+                    'product_id': product_id,
+                    'name': line.get('ITEM-DESC').strip(),
+                    'price_unit': line.get('PRICE-DISCOUNTED').strip(),
+                    'product_uom_qty': line.get('QTY-ORDERED').strip(),
+                    'is_last': False,
+                    'working_cost': line.get('TRUE-FIXED-COST').strip(),
+                    'lst_price': line.get('PRICE-DISCOUNTED').strip(),
+                    'product_uom': code,
+                }
 
                 res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
-                print(pid, 'Create - SALE ORDER LINE', order_id , res)
-
+                print(pid, 'Create - SALE ORDER LINE', order_id, res)
+        except TransactionRollbackError:
+            print("Transaction Rollback - adding {} {} back to the work queue".format(vals['order_id'], vals['name']))
+            data_pool.append(data)
+            continue
+        except ValidationError as ve:
+            print(ve)
+            continue
         # except:
         #     break
 
@@ -61,7 +70,7 @@ def sync_sale_order_lines():
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['note'])
-    order_ids = {inv_no: rec['id']  for rec in res for inv_no in (rec['note'] or '').split(',')}
+    order_ids = {inv_no: rec['id'] for rec in res for inv_no in (rec['note'] or '').split(',')}
 
     fp = open('files/omlhist2.csv', 'r')
     csv_reader = csv.DictReader(fp)
@@ -80,13 +89,12 @@ def sync_sale_order_lines():
 
     data_pool = manager.list([{'order_id': order, 'lines': order_lines[order]} for order in order_lines])
 
-
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [], ['default_code'])
-    products = {rec['default_code']: rec['id']  for rec in res}
+    products = {rec['default_code']: rec['id'] for rec in res}
     product_ids = manager.dict(products)
 
-    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id','name'])
-    uom_ids = {uom['name']:uom['id'] for uom in uoms}
+    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
+    uom_ids = {uom['name']: uom['id'] for uom in uoms}
 
     res = None
     order_ids = None
@@ -95,7 +103,8 @@ def sync_sale_order_lines():
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_sale_order_line, args=(pid, data_pool, error_ids, product_ids, uom_ids))
+        worker = mp.Process(name=pid, target=update_sale_order_line,
+                            args=(pid, data_pool, error_ids, product_ids, uom_ids))
         process_Q.append(worker)
         worker.start()
 
@@ -103,8 +112,6 @@ def sync_sale_order_lines():
         worker.join()
 
 
-
 if __name__ == "__main__":
-
     # SALE ORDER LINE
     sync_sale_order_lines()
