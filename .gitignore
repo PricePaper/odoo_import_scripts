@@ -10,3 +10,10 @@
 .idea/vcs.xml
 .idea/
 *.pyc
+lib64
+lib
+include
+share
+bin
+*/__pycache__
+pyvenv.cfg

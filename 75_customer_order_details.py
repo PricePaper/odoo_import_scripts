@@ -7,11 +7,12 @@ import csv
 import multiprocessing as mp
 import xmlrpc.client as xmlrpclib
 
-from odoo.exceptions import ValidationError
-from psycopg2.extensions import TransactionRollbackError
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
+from psycopg2.extensions import TransactionRollbackError
+from odoo.exceptions import ValidationError
+from xmlrpc.client import ProtocolError
 
 # ==================================== SALE ORDER LINE ====================================
 
@@ -55,12 +56,18 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
             print("Transaction Rollback - adding {} {} back to the work queue".format(vals['order_id'], vals['name']))
             data_pool.append(data)
             continue
-        except ValidationError as ve:
+        except ProtocolError:
+            print("ProtocolError- is Odoo overloaded? - adding {} {} back to the work queue".format(vals['order_id'], vals['name']))
+            data_pool.append(data)
+            continue
+        except xmlrpclib.Fault as ve:
             print(ve)
             continue
-        # except:
-        #     break
-
+        except Exception as e:
+            print("BEGIN Unknown Exception" + "-"*28)
+            print(e)
+            print("END Unknown Exception" + "-"*30)
+            continue
 
 def sync_sale_order_lines():
     manager = mp.Manager()
