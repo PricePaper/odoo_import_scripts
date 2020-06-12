@@ -4,20 +4,41 @@
 # -*- coding: utf-8 -*-
 
 import csv
+import logging.handlers
 import multiprocessing as mp
-import xmlrpc.client as xmlrpclib
+import os
+import xmlrpc.client
 
+# Get this using pip
+import multiprocessing_logging
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
-from psycopg2.extensions import TransactionRollbackError
-from odoo.exceptions import ValidationError
-from xmlrpc.client import ProtocolError
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
+
 
 # ==================================== SALE ORDER LINE ====================================
 
 def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
             data = data_pool.pop()
@@ -35,7 +56,7 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                     error_ids.append()
                     continue
                 if product_id in order_line_ids and code == order_line_ids[product_id]:
-                    print('Duplicate')
+                    logger.debug('Duplicate - {}'.format(line))
                     continue
 
                 vals = {
@@ -44,6 +65,7 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                     'name': line.get('ITEM-DESC').strip(),
                     'price_unit': line.get('PRICE-DISCOUNTED').strip(),
                     'product_uom_qty': line.get('QTY-ORDERED').strip(),
+                    'qty_delivered': line.get('QTY-SHIPPED').strip(),
                     'is_last': False,
                     'working_cost': line.get('TRUE-FIXED-COST').strip(),
                     'lst_price': line.get('PRICE-DISCOUNTED').strip(),
@@ -51,23 +73,29 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                 }
 
                 res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
-                print(pid, 'Create - SALE ORDER LINE', order_id, res)
-        except TransactionRollbackError:
-            print("Transaction Rollback - adding {} {} back to the work queue".format(vals['order_id'], vals['name']))
+                if res % 100 != 0:
+                    logger.debug('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
+                else:
+                    logger.info('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
+
+
+        except xmlrpc.client.ProtocolError:
+            logger.warning("ProtocolError: adding {} back to the work queue".format(order_id))
             data_pool.append(data)
             continue
-        except ProtocolError:
-            print("ProtocolError- is Odoo overloaded? - adding {} {} back to the work queue".format(vals['order_id'], vals['name']))
-            data_pool.append(data)
-            continue
-        except xmlrpclib.Fault as ve:
-            print(ve)
+        except xmlrpc.client.Fault as fault:
+            if fault.faultString.find('ValidationError'):
+                logger.error('Validation Error: {0}\n{1}'.format(fault, line))
+            elif fault.faultString.find('TransactionRollbackError'):
+                logger.warning('TransactionRollbackError - adding back to queue')
+                data_pool.append(data)
+            else:
+                logger.error('Unknown XMLRPC Fault: {}'.format(fault))
             continue
         except Exception as e:
-            print("BEGIN Unknown Exception" + "-"*28)
-            print(e)
-            print("END Unknown Exception" + "-"*30)
+            logger.critical('Unexpected exception: {}'.format(e))
             continue
+
 
 def sync_sale_order_lines():
     manager = mp.Manager()
@@ -75,13 +103,14 @@ def sync_sale_order_lines():
     error_ids = manager.list()
     process_Q = []
 
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['note'])
     order_ids = {inv_no: rec['id'] for rec in res for inv_no in (rec['note'] or '').split(',')}
 
     fp = open('files/omlhist2.csv', 'r')
     csv_reader = csv.DictReader(fp)
-    print('Opened File')
+
+    logger.debug('Opened File {}'.format(fp.name))
 
     order_lines = {}
     for vals in csv_reader:
@@ -92,7 +121,7 @@ def sync_sale_order_lines():
             lines.append(vals)
 
     fp.close()
-    print('Closed File')
+    logger.debug('Closed File {}'.format(fp.name))
 
     data_pool = manager.list([{'order_id': order, 'lines': order_lines[order]} for order in order_lines])
 
