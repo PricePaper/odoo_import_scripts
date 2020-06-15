@@ -136,7 +136,7 @@ def sync_sale_order_lines():
 
     data_pool = manager.list([{'order_id': order, 'lines': order_lines[order]} for order in order_lines])
 
-    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [], ['default_code'])
+    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['default_code'])
     products = {rec['default_code']: rec['id'] for rec in res}
     product_ids = manager.dict(products)
 

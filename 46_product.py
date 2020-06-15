@@ -10,7 +10,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== P R O D U C T S ====================================
 
-def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids):
+def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -21,10 +21,10 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids)
             active = True
             purchase_ok = True
             #  Comment out because inactive items break order imports
-            # # # # if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
-            # # #     purchase_ok = False,
-            # #     if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
-            #         active = False
+            if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
+                purchase_ok = False,
+                if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
+                    active = False
 
             vals = {'name': data.get('ITEM-DESC').strip().title(),
                     'description_sale': data.get('ITEM-DESC').strip().lower(),
@@ -42,6 +42,7 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids)
                     'uom_id': uom_ids.get(code),
                     'uom_po_id': uom_ids.get(code),
                     'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
+                    'property_stock_location': location_ids.get(default_code)
                     }
 
             res = write_ids.get(default_code, [])
@@ -64,11 +65,23 @@ def sync_products():
     write_ids = manager.dict()
     uom_ids = manager.dict()
     category_ids = manager.dict()
+    location_ids = manager.dict()
 
     process_Q = []
 
     fp = open('files/iclitem1.csv', 'r')
     csv_reader = csv.DictReader(fp)
+
+    fp1 = open('files/ivlioh.csv', 'r')
+    csv_reader1 = csv.DictReader(fp1)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+
+    all_locations = sock.execute(DB, UID, PSW, 'stock.location', 'search_read', [('usage', '=', 'internal')], ['id','name'])
+    all_locations = {ele['name']:ele['id'] for ele in all_locations}
+
+    for vals in csv_reader1:
+        if vals['BIN-CODE'] and vals['BIN-CODE'] in all_locations:
+            location_ids[vals['ITEM-CODE'].strip()] = all_locations[vals['BIN-CODE']]
 
     default_codes = []
     for vals in csv_reader:
@@ -79,7 +92,7 @@ def sync_products():
     fp.close()
 
     domain = [('default_code', 'in', default_codes), '|', ('active', '=', False), ('active', '=', True)]
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code'])
     write_ids = {rec['default_code']: rec['id'] for rec in res}
 
@@ -97,7 +110,7 @@ def sync_products():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_product,
-                            args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids))
+                            args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids))
         process_Q.append(worker)
         worker.start()
 
