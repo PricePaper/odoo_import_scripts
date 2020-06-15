@@ -37,7 +37,7 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
             vals = {
                 'name': data['1ST-NAME'].strip().title(),
                 'corp_name': data['2ND-NAME'].strip().title(),
-                'street': data['STREET'].strip(),
+                'street': data['STREET'].strip().title(),
                 'city': city.title(),
                 'active': active,
                 'customer': True,
