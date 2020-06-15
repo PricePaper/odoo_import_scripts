@@ -21,10 +21,10 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
             active = True
             purchase_ok = True
             #  Comment out because inactive items break order imports
-            # # # # if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
-            # # #     purchase_ok = False,
-            # #     if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
-            #         active = False
+            if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
+                purchase_ok = False,
+                if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
+                    active = False
 
             vals = {'name': data.get('ITEM-DESC').strip().title(),
                     'description_sale': data.get('ITEM-DESC').strip().lower(),
