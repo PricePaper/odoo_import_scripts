@@ -7,6 +7,8 @@ import csv
 import logging.handlers
 import multiprocessing as mp
 import os
+import time
+import random
 import xmlrpc.client
 
 # Get this using pip
@@ -46,54 +48,63 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
             order_lines = sock.execute(DB, UID, PSW, 'sale.order.line', 'search_read', [('order_id', '=', order_id)],
                                        ['product_id', 'product_uom'])
             order_line_ids = {rec['product_id'][0]: rec['product_uom'][0] for rec in order_lines}
+            lines = data.get('lines', [])
+            while len(lines) > 0:
+                try:
+                    line = lines.pop()
+                    product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
+                    code = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
+                    code = uom_ids.get(code)
 
-            for line in data.get('lines', []):
-                product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
-                code = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
-                code = uom_ids.get(code)
+                    if not product_id and not code:
+                        error_ids.append()
+                        continue
+                    if product_id in order_line_ids and code == order_line_ids[product_id]:
+                        logger.debug('Duplicate - {}'.format(line))
+                        continue
 
-                if not product_id and not code:
-                    error_ids.append()
+                    vals = {
+                        'order_id': order_id,
+                        'product_id': product_id,
+                        'name': line.get('ITEM-DESC').strip(),
+                        'price_unit': line.get('PRICE-DISCOUNTED').strip(),
+                        'product_uom_qty': line.get('QTY-ORDERED').strip(),
+                        'qty_delivered': line.get('QTY-SHIPPED').strip(),
+                        'is_last': False,
+                        'working_cost': line.get('TRUE-FIXED-COST').strip(),
+                        'lst_price': line.get('PRICE-DISCOUNTED').strip(),
+                        'product_uom': code,
+                    }
+
+                    res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
+                    if res % 100 != 0:
+                        logger.debug('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
+                    else:
+                        logger.info('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
+
+
+                except xmlrpc.client.ProtocolError:
+                    logger.warning("ProtocolError: adding {} back to the work queue".format(order_id))
+                    lines.append(line)
+                    time.sleep(random.randint(1, 3))
                     continue
-                if product_id in order_line_ids and code == order_line_ids[product_id]:
-                    logger.debug('Duplicate - {}'.format(line))
+                except xmlrpc.client.Fault as fault:
+                    if fault.faultString.count('serialize'):
+                        logger.warning('TransactionRollbackError - adding back to queue: ' + str(fault))
+                        lines.append(line)
+                    elif fault.faultString.count('Missing required fields on accountable sale order line'):
+                        logger.error('Validation Error: {0}\n{1}'.format(fault, line))
+                    else:
+                        logger.error('Unknown XMLRPC Fault: {}'.format(fault))
                     continue
-
-                vals = {
-                    'order_id': order_id,
-                    'product_id': product_id,
-                    'name': line.get('ITEM-DESC').strip(),
-                    'price_unit': line.get('PRICE-DISCOUNTED').strip(),
-                    'product_uom_qty': line.get('QTY-ORDERED').strip(),
-                    'qty_delivered': line.get('QTY-SHIPPED').strip(),
-                    'is_last': False,
-                    'working_cost': line.get('TRUE-FIXED-COST').strip(),
-                    'lst_price': line.get('PRICE-DISCOUNTED').strip(),
-                    'product_uom': code,
-                }
-
-                res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
-                if res % 100 != 0:
-                    logger.debug('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
-                else:
-                    logger.info('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
-
+                except Exception as e:
+                    logger.critical('Unexpected exception: {}'.format(e))
+                    continue
 
         except xmlrpc.client.ProtocolError:
             logger.warning("ProtocolError: adding {} back to the work queue".format(order_id))
+            time.sleep(random.randint(1, 3))
             data_pool.append(data)
-            continue
-        except xmlrpc.client.Fault as fault:
-            if fault.faultString.find('ValidationError'):
-                logger.error('Validation Error: {0}\n{1}'.format(fault, line))
-            elif fault.faultString.find('TransactionRollbackError'):
-                logger.warning('TransactionRollbackError - adding back to queue')
-                data_pool.append(data)
-            else:
-                logger.error('Unknown XMLRPC Fault: {}'.format(fault))
-            continue
-        except Exception as e:
-            logger.critical('Unexpected exception: {}'.format(e))
             continue
 
 
