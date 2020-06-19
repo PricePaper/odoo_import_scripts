@@ -16,22 +16,21 @@ def update_cross_ref(pid, data_pool, product_ids, config_id, product_sku_ref_ids
             data = data_pool.pop()
 
             default_code = data.get('PPT CODE').strip()
+            if product_ids.get(default_code):
+                vals={'product_id': product_ids.get(default_code),
+                      'web_config': config_id,
+                      'competitor_sku': data.get(file_header[0]).strip(),
+                      'competitor_desc': data.get(file_header[1]).strip(),
+                      'qty_in_uom': data.get('COUNT').strip(),
+                      }
 
-
-            vals={'product_id': product_ids.get(default_code),
-                  'web_config': config_id,
-                  'competitor_sku': data.get(file_header[0]).strip(),
-                  'competitor_desc': data.get(file_header[1]).strip(),
-                  'qty_in_uom': data.get('COUNT').strip(),
-                  }
-
-            res = product_sku_ref_ids.get(product_ids.get(default_code, ''), '')
-            if res:
-                sock.execute(DB, UID, PSW, 'product.sku.reference', 'write', res, vals)
-                print(pid, 'UPDATE - PRODUCT', res)
-            else:
-                res = sock.execute(DB, UID, PSW, 'product.sku.reference', 'create', vals)
-                print(pid, 'CREATE - PRODUCT', res)
+                res = product_sku_ref_ids.get(product_ids.get(default_code, ''), '')
+                if res:
+                    sock.execute(DB, UID, PSW, 'product.sku.reference', 'write', res, vals)
+                    print(pid, 'UPDATE - PRODUCT', res)
+                else:
+                    res = sock.execute(DB, UID, PSW, 'product.sku.reference', 'create', vals)
+                    print(pid, 'CREATE - PRODUCT', res)
         except Exception as e:
             print(e)
             break
@@ -71,13 +70,10 @@ def sync_cross_ref(file, competitor, file_header):
 
 
         config_id = config[0]['id']
-        print (config_id, config)
-
         domain = [('web_config', '=', config_id)]
         product_sku_refs = sock.execute(DB, UID, PSW, 'product.sku.reference', 'search_read', domain, ['product_id'])
-        product_sku_ref_ids = {product_sku_ref['product_id'][0]: product_sku_ref['id']  for product_sku_ref in product_sku_refs}
-        print (product_sku_ref_ids)
 
+        product_sku_ref_ids = {product_sku_ref['product_id'][0]: product_sku_ref['id']  for product_sku_ref in product_sku_refs}
 
         default_codes = None
 
@@ -99,7 +95,7 @@ def wdepot():
 def rdepot():
     file = 'files/Depot Scrubber Update - Sheet1.csv'
     competitor = 'rdepot'
-    file_header = ['COMP SKU', 'COMP DESC']
+    file_header = ['UPC', 'COMP DESC']
     sync_cross_ref(file, competitor, file_header)
 
 
