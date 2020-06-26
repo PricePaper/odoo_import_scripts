@@ -38,5 +38,6 @@ with open("ERROR_cl.csv", "w") as f, open("parent_missing_cl.csv", "w") as f1:
                 f.write(line.get('PROD-CODE', '').strip())
                 f.write('\n')
         else:
+            print(line)
             f1.write(line.get('PROD-COD').strip())
             f1.write('\n')

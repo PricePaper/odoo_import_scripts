@@ -38,5 +38,6 @@ with open("ERROR_mj.csv", "w") as f, open("parent_missing_mj.csv", "w") as f1:
                 f.write(line.get('MAJOR-CLASS').strip())
                 f.write('\n')
         else:
+            print(line)
             f1.write(line.get('MAJOR-CLASS').strip())
             f1.write('\n')

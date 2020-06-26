@@ -99,7 +99,7 @@ def wdepot():
 def rdepot():
     file = 'files/Depot Scrubber Update - Sheet1.csv'
     competitor = 'rdepot'
-    file_header = ['COMP SKU', 'COMP DESC']
+    file_header = ['UPC', 'COMP DESC']
     sync_cross_ref(file, competitor, file_header)
 
 
