@@ -16,16 +16,22 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
             data = data_pool.pop()
             price_list = data.get('pricelist_id', '').strip()
             pricelist_id = write_ids.get(price_list, '')
-            vals={
-                  'name': price_list,
-                  'type': 'customer'
-                  }
-            if not pricelist_id and price_list not in shared_dict:
+            if not pricelist_id :
+                vals={
+                      'name': price_list,
+                      'type': 'customer'
+                      }
                 if price_list in shared_list:
                     vals['type'] = 'shared'
-                id = sock.execute(DB, UID, PSW, 'product.pricelist', 'create', vals)
+                pricelist_id = sock.execute(DB, UID, PSW, 'product.pricelist', 'create', vals)
+                partner = partner_ids.get(price_list, '')
+                partner_vals={
+                    'partner_id': partner,
+                    'pricelist_id': pricelist_id
+                    }
+                sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', partner_vals)
                 print(pid, 'CREATE - PRICELIST', price_list)
-                write_ids[price_list] = id
+                write_ids[price_list] = pricelist_id
 
 
 
@@ -70,9 +76,7 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                             print(pid, 'UPDATE - LINE', status)
                         else:
                             status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
-                            # print(vals)
                             print(pid, 'CREATE - LINE', status)
-                            break
 
         # except:
         #     break
@@ -118,6 +122,8 @@ def sync_price_list():
     price_lists = {}
     for vals in csv_reader:
         customer_code = vals.get('CUSTOMER-CODE').strip()
+        if customer_code in shared_dict:
+            continue
         lines = price_lists.setdefault(customer_code, [])
         lines.append(vals)
 
@@ -191,19 +197,19 @@ def sync_partner_pricelist():
 
     for rec in shared_dict:
         partner_id = partner_ids.get(rec, '')
+        shared_id = pricelist_ids.get(shared_dict.get(rec, '').strip())
         if partner_id in customer_price_list:
-            unlink_list = customer_price_list.get(rec, '')
-            shared_id = pricelist_ids.get(vals.get('PRICING-ACCT-NO', '').strip())
+            unlink_list = customer_price_list.get(partner_id, '')
+            shared_id = pricelist_ids.get(shared_dict.get(rec, '').strip())
             if unlink_list:
-                pass
                 sock.execute(DB, UID, PSW, 'customer.pricelist', 'unlink', unlink_list)
                 print('Deleted')
-            vals={
-                'partner_id': partner_id,
-                'pricelist_id': shared_id
-            }
-            status = sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', vals)
-            print('Updated Customer ', status)
+        vals={
+            'partner_id': partner_id,
+            'pricelist_id': shared_id
+        }
+        status = sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', vals)
+        print('Updated Customer ', status)
 
 
 
