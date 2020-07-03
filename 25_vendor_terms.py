@@ -16,7 +16,7 @@ def update_vendor_terms(pid, data_pool, write_ids, error_ids):
             vals = {'name': data.get('TERM-DESC').strip(),
                     'note': data.get('TERM-DESC').strip(),
                     'active': True,
-                    'order_type': 'sale',
+                    'order_type': 'purchase',
                     'code': code,
                     'discount_per': data.get('TERM-DISC-PCT', 0),
                     'due_days': data.get('TERM-DISC-DAYS', 0),
