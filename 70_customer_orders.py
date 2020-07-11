@@ -35,6 +35,7 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids):
                 'note': inv_no,
                 'payment_term_id': term_id,
                 'date_order': order_list[0].get('ORDER-DATE', '').strip(),
+                'confirmation_date': order_list[0].get('ORDER-DATE', '').strip(),
             }
 
             try:
