@@ -17,3 +17,4 @@ share
 bin
 */__pycache__
 pyvenv.cfg
+import_scripts.conf

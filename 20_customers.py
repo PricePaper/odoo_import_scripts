@@ -123,7 +123,7 @@ def sync_customers():
                 if primary_email == "Y":
                     partner_emails[customer_code.strip()] = customer_email.strip()
 
-    domain = [('customer_code', 'in', customer_codes),|,('active', '=', False), ('active', '=', True)]
+    domain = [('customer_code', 'in', customer_codes),'|',('active', '=', False), ('active', '=', True)]
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
 
     res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', domain, ['customer_code'])

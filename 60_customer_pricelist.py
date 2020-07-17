@@ -2,49 +2,82 @@
 # -*- coding: utf-8 -*-
 
 import csv
-from xmlrpc import client as xmlrpclib
+import logging.handlers
 import multiprocessing as mp
+import os
+import random
+import time
+import xmlrpc.client
+from xmlrpc import client as xmlrpclib
+
+# Get this using pip
+import multiprocessing_logging
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
+
 # =================================== PRICE LIST ========================================
 
-def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist_ids, shared_list, shared_dict, product_ids, broken_uom):
+def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist_ids, shared_list, shared_dict,
+                      product_ids, broken_uom):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         # try:
-            data = data_pool.pop()
-            price_list = data.get('pricelist_id', '').strip()
-            pricelist_id = write_ids.get(price_list, '')
-            if not pricelist_id :
-                vals={
-                      'name': price_list,
-                      'type': 'customer'
-                      }
-                if price_list in shared_list:
-                    vals['type'] = 'shared'
-                pricelist_id = sock.execute(DB, UID, PSW, 'product.pricelist', 'create', vals)
-                partner = partner_ids.get(price_list, '')
-                partner_vals={
-                    'partner_id': partner,
-                    'pricelist_id': pricelist_id
-                    }
-                sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', partner_vals)
-                print(pid, 'CREATE - PRICELIST', price_list)
-                write_ids[price_list] = pricelist_id
+        data = data_pool.pop()
+        price_list = data.get('pricelist_id', '').strip()
+        pricelist_id = write_ids.get(price_list, '')
+        if not pricelist_id:
+            vals = {
+                'name': price_list,
+                'type': 'customer'
+            }
+            if price_list in shared_list:
+                vals['type'] = 'shared'
+            pricelist_id = sock.execute(DB, UID, PSW, 'product.pricelist', 'create', vals)
+            partner = partner_ids.get(price_list, '')
+            partner_vals = {
+                'partner_id': partner,
+                'pricelist_id': pricelist_id
+            }
+            sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', partner_vals)
+            logger.info('{} CREATE - PRICELIST {}'.format(pid, price_list))
+            write_ids[price_list] = pricelist_id
 
+        line_ids = sock.execute(DB, UID, PSW, 'customer.product.price', 'search_read',
+                                [('pricelist_id', '=', pricelist_id)], ['product_id', 'product_uom', 'price'])
+        pricelist_line_ids = {}
+        for rec in line_ids:
+            if rec['product_id'][0] in pricelist_line_ids:
+                if rec['product_uom'][0] not in pricelist_line_ids[rec['product_id'][0]]:
+                    pricelist_line_ids[rec['product_id'][0]][rec['product_uom'][0]] = [rec['price'], rec['id']]
+            else:
+                pricelist_line_ids[rec['product_id'][0]] = {rec['product_uom'][0]: [rec['price'], rec['id']]}
 
-
-            line_ids = sock.execute(DB, UID, PSW, 'customer.product.price', 'search_read', [('pricelist_id', '=', pricelist_id)], ['product_id', 'product_uom', 'price'])
-            pricelist_line_ids={}
-            for rec in line_ids:
-                if rec['product_id'][0] in pricelist_line_ids:
-                    if rec['product_uom'][0] not in pricelist_line_ids[rec['product_id'][0]]:
-                        pricelist_line_ids[rec['product_id'][0]][rec['product_uom'][0]] = [rec['price'], rec['id']]
-                else:
-                    pricelist_line_ids[rec['product_id'][0]] = {rec['product_uom'][0]: [rec['price'], rec['id']]}
-
-            for line in data.get('lines', []):
+        lines = data.get('lines', [])
+        line = ''
+        while len(lines) > 0:
+            try:
+                line = lines.pop()
                 product_code = line.get('ITEM-CODE', '').strip()
                 product = product_ids.get(product_code)
                 product_id = product and product[0]
@@ -55,43 +88,46 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                     uom_code = uom + '_' + broken_uom[product_code][uom]
                     uom_id = uom_ids.get(uom_code)
                 else:
-                    print('UOM mismatch')
-
+                    logger.error('UOM mismatch: {}'.format(line))
 
                 if product_id:
                     if uom_id:
                         vals = {
-                                'pricelist_id':pricelist_id,
-                                'product_id': product_id,
-                                'product_uom': uom_id,
-                                'price': line.get('CURRENT-PRICE-IN-STK', 0),
-                                'price_last_updated': line.get('LAST-PRICE-CHANGE-DA').strip()
-                             }
+                            'pricelist_id': pricelist_id,
+                            'product_id': product_id,
+                            'product_uom': uom_id,
+                            'price': line.get('CURRENT-PRICE-IN-STK', 0),
+                            'price_last_updated': line.get('LAST-PRICE-CHANGE-DA').strip()
+                        }
                         if price_list not in shared_list:
                             vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
-                        status=''
+                        status = ''
                         if product_id in pricelist_line_ids and uom_id in pricelist_line_ids[product_id]:
                             write_id = pricelist_line_ids[product_id][uom_id][1]
                             status = sock.execute(DB, UID, PSW, 'customer.product.price', 'write', write_id, vals)
-                            print(pid, 'UPDATE - LINE', status)
+                            logger.debug('{} UPDATE - LINE'.format(pid, status))
                         else:
                             status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
-                            print(pid, 'CREATE - LINE', status)
+                            if status % 100 != 0:
+                                logger.debug('CREATE - LINE'.format(pid, status))
+                            else:
+                                logger.info('CREATE - LINE'.format(pid, status))
+            except xmlrpc.client.ProtocolError:
+                logger.warning("ProtocolError: adding {} back to the work queue".format(vals))
+                lines.append(line)
+                time.sleep(random.randint(1, 3))
+                continue
 
-        # except:
-        #     break
-            # error_ids.apppend(customer_code)
 
 def sync_price_list():
     manager = mp.Manager()
-    # error_ids = manager.list()
 
     process_Q = []
 
     fp = open('files/omlphist.csv', 'r')
     fp1 = open('files/rclcust2.csv', 'r')
     csv_reader = csv.DictReader(fp)
-    csv_reader1 = csv.DictReader(fp1)   #line.get('PRICING-ACCT-NO').strip()
+    csv_reader1 = csv.DictReader(fp1)  # line.get('PRICING-ACCT-NO').strip()
     fp2 = open('files/ivlitum1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
 
@@ -105,11 +141,8 @@ def sync_price_list():
                 broken_uom[product_code][vals.get('UOM').strip()] = vals.get('QTY').strip()
     broken_uom = manager.dict(broken_uom)
 
-
-
-
-    shared_dict={}
-    shared_list=[]
+    shared_dict = {}
+    shared_list = []
 
     for vals in csv_reader1:
         if vals.get('PRICING-ACCT-NO', '').strip():
@@ -127,40 +160,41 @@ def sync_price_list():
         lines = price_lists.setdefault(customer_code, [])
         lines.append(vals)
 
-    data_pool = manager.list([{'pricelist_id': price_list, 'lines': price_lists[price_list]} for price_list in price_lists])
-
+    data_pool = manager.list(
+        [{'pricelist_id': price_list, 'lines': price_lists[price_list]} for price_list in price_lists])
 
     fp.close()
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
 
     res = sock.execute(DB, UID, PSW, 'product.pricelist', 'search_read', [], ['name'])
-    pricelist_ids = {rec['name']: rec['id']  for rec in res}
+    pricelist_ids = {rec['name']: rec['id'] for rec in res}
 
     write_ids = manager.dict(pricelist_ids)
 
     res = ''
 
-
-    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['customer_code'])
-    customers = {rec['customer_code']: rec['id']  for rec in res}
+    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', ['|', ('active', '=', False), ('active', '=', True)],
+                       ['customer_code'])
+    customers = {rec['customer_code']: rec['id'] for rec in res}
     partner_ids = manager.dict(customers)
 
-    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['default_code', 'sale_uoms', 'uom_id'])
-    products = {rec['default_code']: [rec['id'], rec['uom_id'], rec['sale_uoms']]  for rec in res}
+    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read',
+                       ['|', ('active', '=', False), ('active', '=', True)], ['default_code', 'sale_uoms', 'uom_id'])
+    products = {rec['default_code']: [rec['id'], rec['uom_id'], rec['sale_uoms']] for rec in res}
     product_ids = manager.dict(products)
 
-
-    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id','name'])
+    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
     uom_ids = manager.dict({uom['name']: uom['id'] for uom in uoms})
-
 
     res = None
     customer_codes = None
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_price_list, args=(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist_ids, shared_list, shared_dict, product_ids, broken_uom))
+        worker = mp.Process(name=pid, target=update_price_list, args=(
+            pid, data_pool, write_ids, uom_ids, partner_ids, pricelist_ids, shared_list, shared_dict, product_ids,
+            broken_uom))
         process_Q.append(worker)
         worker.start()
 
@@ -168,18 +202,18 @@ def sync_price_list():
         worker.join()
 
 
-
 def sync_partner_pricelist():
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
 
-    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', [('customer', '=', True), '|', ('active', '=', False), ('active', '=', True)], ['customer_code'])
-    partner_ids = {rec['customer_code']: rec['id']  for rec in res}
+    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read',
+                       [('customer', '=', True), '|', ('active', '=', False), ('active', '=', True)], ['customer_code'])
+    partner_ids = {rec['customer_code']: rec['id'] for rec in res}
 
     res = sock.execute(DB, UID, PSW, 'product.pricelist', 'search_read', [], ['name'])
-    pricelist_ids = {rec['name']: rec['id']  for rec in res}
+    pricelist_ids = {rec['name']: rec['id'] for rec in res}
 
     res = ''
-    customer_price_list={}
+    customer_price_list = {}
     res = sock.execute(DB, UID, PSW, 'customer.pricelist', 'search_read', [], ['partner_id', 'id'])
     for rec in res:
         if rec['partner_id']:
@@ -189,7 +223,7 @@ def sync_partner_pricelist():
     fp1 = open('files/rclcust2.csv', 'r')
     csv_reader1 = csv.DictReader(fp1)
 
-    shared_dict={}
+    shared_dict = {}
 
     for vals in csv_reader1:
         if vals.get('PRICING-ACCT-NO', '').strip():
@@ -203,20 +237,18 @@ def sync_partner_pricelist():
             shared_id = pricelist_ids.get(shared_dict.get(rec, '').strip())
             if unlink_list:
                 sock.execute(DB, UID, PSW, 'customer.pricelist', 'unlink', unlink_list)
-                print('Deleted')
-        vals={
+                logger.debug('Deleted {}'.format(unlink_list))
+        vals = {
             'partner_id': partner_id,
             'pricelist_id': shared_id
         }
         status = sock.execute(DB, UID, PSW, 'customer.pricelist', 'create', vals)
-        print('Updated Customer ', status)
-
+        logger.debug('Updated Customer {} '.format(status))
 
 
 if __name__ == "__main__":
-
     # price_list
     sync_price_list()
 
-    #pricelist_lines
+    # pricelist_lines
     sync_partner_pricelist()
