@@ -33,6 +33,7 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
             if not partner_id or not term_id:
                 error_ids.append(order_no)
                 continue
+            inv_no = ','.join(order.get('INVOICE-NO', '').strip() for order in order_list)
 
             vals = {
                 'name': order_list[0].get('ORDER-NO', '').strip(),
@@ -40,7 +41,8 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                 'partner_shipping_id':shipping_id,
                 'payment_term_id': term_id,
                 'date_order': order_list[0].get('ORDER-DATE', '').strip(),
-                'user_id': user_id
+                'user_id': user_id,
+                'note': inv_no
             }
 
 
