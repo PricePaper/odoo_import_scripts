@@ -11,7 +11,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== SALE ORDER ====================================
 
-def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids):
+def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids):
     while True:
         try:
             sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -23,6 +23,12 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids):
             order_list = data.get('orders', [])
 
             partner_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            shipping_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
+            user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
+            if  ship_to_code and ship_to_code != 'SAME':
+                shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
+                shipping_id = partner_ids.get(shipping_code)
             term_id = term_ids.get(order_list[0].get('TERM-CODE', '').strip())
             if not partner_id or not term_id:
                 error_ids.append(order_no)
@@ -32,10 +38,12 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids):
             vals = {
                 'name': order_list[0].get('ORDER-NO', '').strip(),
                 'partner_id': partner_id,
+                'partner_shipping_id':shipping_id,
                 'note': inv_no,
                 'payment_term_id': term_id,
                 'date_order': order_list[0].get('ORDER-DATE', '').strip(),
                 'confirmation_date': order_list[0].get('ORDER-DATE', '').strip(),
+                'user_id': user_id
             }
 
             try:
@@ -66,6 +74,8 @@ def sync_sale_orders():
     manager = mp.Manager()
     data_pool = manager.JoinableQueue()
     error_ids = manager.list()
+    sale_rep_ids = manager.dict()
+    user_ids = manager.dict()
 
     orders = {}
     with open('files/omlhist1.csv', newline='') as f:
@@ -84,6 +94,16 @@ def sync_sale_orders():
     customers = {rec['customer_code']: rec['id'] for rec in res}
     partner_ids = manager.dict(customers)
 
+    sale_rep = sock.execute(DB, UID, PSW, 'res.partner', 'search_read',
+                            [('is_sales_person', '=', True), '|', ('active', '=', False), ('active', '=', True)],
+                            ['id', 'sales_person_code'])
+    sale_rep_ids = {rec['sales_person_code']: rec['id'] for rec in sale_rep}
+
+    users = sock.execute(DB, UID, PSW, 'res.users', 'search_read',
+                            [],
+                            ['id', 'partner_id'])
+    user_ids = {rec['partner_id'][0]: rec['id'] for rec in users}
+
     payment_terms = sock.execute(DB, UID, PSW, 'account.payment.term', 'search_read', [('order_type', '=', 'sale')],
                                  ['id', 'code'])
     term_ids = {term['code']: term['id'] for term in payment_terms}
@@ -91,7 +111,7 @@ def sync_sale_orders():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order,
-                            args=(pid, data_pool, error_ids, partner_ids, term_ids))
+                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids))
         worker.start()
         workers.append(worker)
 
