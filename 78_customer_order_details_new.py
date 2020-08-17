@@ -45,7 +45,7 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
                         }
 
                 tax = ''
-                if line.get('TAX-CODE') == '1':
+                if line.get('TAX-CODE') == '0':
                     tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('ORDER-NO')))))
                     vals['tax_id'] = [(6, 0, [tax])]
 
