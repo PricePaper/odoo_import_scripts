@@ -39,7 +39,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== SALE ORDER LINE ====================================
 
-def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
+def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -75,6 +75,11 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                         'lst_price': line.get('PRICE-DISCOUNTED').strip(),
                         'product_uom': code,
                     }
+
+                    tax = ''
+                    if line.get('TAX-CODE') == '0':
+                        tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('INVOICE-NO')))))
+                        vals['tax_id'] = [(6, 0, [tax])]
 
                     res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
                     if res % 100 != 0:
@@ -140,10 +145,32 @@ def sync_sale_order_lines():
     products = {rec['default_code']: rec['id'] for rec in res}
     product_ids = manager.dict(products)
 
+    taxes = sock.execute(DB, UID, PSW, 'account.tax', 'search_read', [('name', '!=', 'Sale Tax' )], ['id','amount'])
+    tax1 = {float(tax['amount']): tax['id'] for tax in taxes}
+    tax_ids = manager.dict(tax1)
+
+    fp1 = open('files/fiscal.csv', 'r')
+    csv_reader1 = csv.DictReader(fp1)
+    tax_codes={}
+    for line in csv_reader1:
+        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT')
+    tax_code_ids = manager.dict(tax_codes)
+
+    fp2 = open('files/omlhist1.csv', 'r')
+    csv_reader2 = csv.DictReader(fp2)
+    oder_tax_codes={}
+    for line in csv_reader2:
+        oder_tax_codes[line.get('INVOICE-NO').strip()] = line.get('TAX-AUTH-CODE')
+    order_tax_code_ids = manager.dict(oder_tax_codes)
+
+
+
     uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
     uom_ids = {uom['name']: uom['id'] for uom in uoms}
 
     res = None
+    taxes = None
+    tax1 = None
     order_ids = None
     order_lines = None
     products = None
@@ -151,7 +178,7 @@ def sync_sale_order_lines():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order_line,
-                            args=(pid, data_pool, error_ids, product_ids, uom_ids))
+                            args=(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
         process_Q.append(worker)
         worker.start()
 
