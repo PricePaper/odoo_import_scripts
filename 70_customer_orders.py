@@ -11,7 +11,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== SALE ORDER ====================================
 
-def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids):
+def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id):
     while True:
         try:
             sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -65,6 +65,25 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                 else:
                     res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
                     print(pid, 'CREATE - SALE ORDER', res, order_no)
+                    misc_vals = {
+                    'order_id': res,
+                    'product_id': misc_product_id,
+                    'name': 'MISC CHARGES',
+                    'price_unit': order_list[0].get('MISC-CHARGE', '').strip(),
+                    'product_uom_qty': 1,
+                    'is_delivery': True
+                    }
+                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
+                    frieght_vals = {
+                    'order_id': res,
+                    'product_id': delivery_product_id,
+                    'name': 'Frieght CHARGES',
+                    'price_unit': order_list[0].get('FREIGHT-AMT', 0),
+                    'product_uom_qty': 1,
+                    'is_delivery': True
+                    }
+                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
+
             except Exception as e:
                 data_pool.put(data)
         finally:
@@ -104,6 +123,20 @@ def sync_sale_orders():
                             ['id', 'partner_id'])
     user_ids = {rec['partner_id'][0]: rec['id'] for rec in users}
 
+    misc_product_id = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [('default_code', '=', 'misc' )], ['id'])
+    if not misc_product_id:
+        pro_vals = {'name':'Misc Charge', 'default_code':'misc','type': 'service'}
+        misc_product_id = sock.execute(DB, UID, PSW, 'product.product', 'create', pro_vals)
+    else:
+        misc_product_id = misc_product_id[0]['id']
+    delivery_product_id = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [('default_code', '=', 'delivery_008' )], ['id'])
+    if not delivery_product_id:
+        del_pro_vals = {'name':'Delivery Charge', 'default_code':'delivery_008','type': 'service'}
+        delivery_product_id = sock.execute(DB, UID, PSW, 'product.product', 'create', del_pro_vals)
+    else:
+        delivery_product_id = delivery_product_id[0]['id']
+    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['default_code'])
+
     payment_terms = sock.execute(DB, UID, PSW, 'account.payment.term', 'search_read', [('order_type', '=', 'sale')],
                                  ['id', 'code'])
     term_ids = {term['code']: term['id'] for term in payment_terms}
@@ -111,7 +144,7 @@ def sync_sale_orders():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order,
-                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids))
+                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id))
         worker.start()
         workers.append(worker)
 
