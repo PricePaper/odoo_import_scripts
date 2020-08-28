@@ -43,7 +43,8 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                 'payment_term_id': term_id,
                 'date_order': order_list[0].get('ORDER-DATE', '').strip(),
                 'confirmation_date': order_list[0].get('ORDER-DATE', '').strip(),
-                'user_id': user_id
+                'user_id': user_id,
+                'carrier_id': carrier_ids.get(order_list[0].get('CARRIER-CODE').strip())
             }
 
             try:
@@ -65,24 +66,28 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                 else:
                     res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
                     print(pid, 'CREATE - SALE ORDER', res, order_no)
-                    misc_vals = {
-                    'order_id': res,
-                    'product_id': misc_product_id,
-                    'name': 'MISC CHARGES',
-                    'price_unit': order_list[0].get('MISC-CHARGE', '').strip(),
-                    'product_uom_qty': 1,
-                    'is_delivery': True
-                    }
-                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
-                    frieght_vals = {
-                    'order_id': res,
-                    'product_id': delivery_product_id,
-                    'name': 'Frieght CHARGES',
-                    'price_unit': order_list[0].get('FREIGHT-AMT', 0),
-                    'product_uom_qty': 1,
-                    'is_delivery': True
-                    }
-                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
+                    misc_charge = order_list[0].get('MISC-CHARGE', 0).strip()
+                    freight_charge = order_list[0].get('FREIGHT-AMT', 0)
+                    if misc_charge !='0':
+                        misc_vals = {
+                        'order_id': res,
+                        'product_id': misc_product_id,
+                        'name': 'MISC CHARGES',
+                        'price_unit': order_list[0].get('MISC-CHARGE', 0).strip(),
+                        'product_uom_qty': 1,
+                        'is_delivery': True
+                        }
+                        sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
+                    if misc_charge !='0':
+                        frieght_vals = {
+                        'order_id': res,
+                        'product_id': delivery_product_id,
+                        'name': 'Frieght CHARGES',
+                        'price_unit': order_list[0].get('FREIGHT-AMT', 0),
+                        'product_uom_qty': 1,
+                        'is_delivery': True
+                        }
+                        sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
 
             except Exception as e:
                 data_pool.put(data)
@@ -122,6 +127,10 @@ def sync_sale_orders():
                             [],
                             ['id', 'partner_id'])
     user_ids = {rec['partner_id'][0]: rec['id'] for rec in users}
+
+    carriers = sock.execute(DB, UID, PSW, 'delivery.carrier', 'search_read', [], ['id', 'name'])
+    carrier_ids = {rec['name']: rec['id'] for rec in carriers}
+    carrier_ids = manager.dict(carrier_ids)
 
     misc_product_id = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [('default_code', '=', 'misc' )], ['id'])
     if not misc_product_id:
