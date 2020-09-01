@@ -10,13 +10,13 @@ socket = xmlrpc.client.ServerProxy(url,context=ssl._create_unverified_context())
 
 taxes = socket.execute(db, 2, pwd, 'account.tax', 'search_read', [('name', '!=', 'Sale Tax' )], ['id','amount'])
 tax1 = {float(tax['amount']): tax['id'] for tax in taxes}
-input_file = csv.DictReader(open("fiscal.csv"))
+input_file = csv.DictReader(open("files/omltxau1.csv"))
 
 file_taxes = []
 
 with open("ERROR.csv", "wb") as f:
     for line in input_file:
-        tax = float(line.get('TAX-AUTH-PCT'))
+        tax = float(line.get('TAX-AUTH-PCT        '))
         if tax not in file_taxes:
             file_taxes.append(tax)
 for tax in file_taxes:
