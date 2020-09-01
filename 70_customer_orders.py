@@ -11,7 +11,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== SALE ORDER ====================================
 
-def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id):
+def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids):
     while True:
         try:
             sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -23,7 +23,7 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
             order_list = data.get('orders', [])
 
             partner_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
-            shipping_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            shipping_id = partner_id
             ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
             if  ship_to_code and ship_to_code != 'SAME':
@@ -153,7 +153,8 @@ def sync_sale_orders():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order,
-                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id))
+                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids
+                                ))
         worker.start()
         workers.append(worker)
 

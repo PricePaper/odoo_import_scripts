@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from xmlrpc import client as xmlrpclib
 import ssl
 import csv

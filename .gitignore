@@ -10,6 +10,7 @@
 .idea/vcs.xml
 .idea/
 *.pyc
+*.log
 lib64
 lib
 include
