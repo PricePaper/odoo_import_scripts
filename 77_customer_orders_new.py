@@ -8,10 +8,33 @@ import queue
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
+import logging.handlers
+import os
+import time
+import multiprocessing_logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
+
 
 # ==================================== SALE ORDER ====================================
 
-def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids):
+def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids):
     while True:
         try:
             sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -22,16 +45,20 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
             order_no = data.get('ref', '')
             order_list = data.get('orders', [])
 
-            partner_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            partner_code = order_list[0].get('CUSTOMER-CODE', '').strip()
+            partner_id = partner_ids.get(partner_code)
+            shipping_id = partner_id
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
             term_id = term_ids.get(order_list[0].get('TERM-CODE', '').strip())
-            shipping_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
             ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
             if  ship_to_code and ship_to_code != 'SAME':
-                shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
-                shipping_id = partner_ids.get(shipping_code)
-            if not partner_id or not term_id:
-                error_ids.append(order_no)
+                shipping_code = partner_code+'-'+ship_to_code
+                shipping_id = partner_ids.get(shipping_code, False)
+                if not shipping_id:
+                    logger.error('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_no, shipping_code))
+                    continue
+            if not partner_id:
+                logger.error('Partner Missing - Order NO:{0} Partner Code:{1}'.format(order_no, partner_code))
                 continue
             inv_no = ','.join(order.get('INVOICE-NO', '').strip() for order in order_list)
 
@@ -51,19 +78,19 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                 # Check if order exists
                 res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [('name', '=', order_no)])
                 if res:
-                    order_id = res[0]['id']
-                    try:
-                        # If order exists, remove followers to prevent Odoo from trying to duplicate
-                        message_partner_ids = res[0]['message_partner_ids']
-                        if message_partner_ids:
-                            sock.execute(DB, UID, PSW, 'mail.followers', 'unlink', message_partner_ids)
-                        print ('bb')
-                    except Exception as e:
-                        print(e)
-                        pass
+                    continue
+                    # order_id = res[0]['id']
+                    # try:
+                    #     # If order exists, remove followers to prevent Odoo from trying to duplicate
+                    #     message_partner_ids = res[0]['message_partner_ids']
+                    #     if message_partner_ids:
+                    #         sock.execute(DB, UID, PSW, 'mail.followers', 'unlink', message_partner_ids)
+                    # except Exception as e:
+                    #     print(e)
+                    #     pass
                     # # Update the DB
-                    sock.execute(DB, UID, PSW, 'sale.order', 'write', order_id, vals)
-                    print(pid, 'UPDATE - SALE ORDER', order_id, res[0]['name'])
+                    # sock.execute(DB, UID, PSW, 'sale.order', 'write', order_id, vals)
+                    # print(pid, 'UPDATE - SALE ORDER', order_id, res[0]['name'])
                 else:
                     res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
                     print(pid, 'CREATE - SALE ORDER', res, order_no)
@@ -90,15 +117,16 @@ def update_sale_order(pid, data_pool, error_ids, partner_ids, term_ids, user_ids
                         }
                         sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
             except Exception as e:
-                print (e)
-                data_pool.put(data)
+                logger.error('Exception --- Order No:{0} error:{1}'.format(order_no, e))
+                # data_pool.put(data)
+        except Exception as e:
+            logger.error('Exception --- error:{}'.format(e))
         finally:
             data_pool.task_done()
 
 def sync_sale_orders():
     manager = mp.Manager()
     data_pool = manager.JoinableQueue()
-    error_ids = manager.list()
 
     orders = {}
     with open('files/omlordr1.csv', newline='') as f:
@@ -152,7 +180,7 @@ def sync_sale_orders():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order,
-                            args=(pid, data_pool, error_ids, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids))
+                            args=(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids))
         worker.start()
         workers.append(worker)
 
