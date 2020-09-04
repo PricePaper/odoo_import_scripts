@@ -64,7 +64,7 @@ def sync_customers():
 
 
     customer_codes = []
-    with open('omlshpt1.csv', 'r') as fp:
+    with open('files/omlshpt1.csv', 'r') as fp:
         csv_reader = csv.DictReader(fp)
         for vals in csv_reader:
             data_pool.append(vals)

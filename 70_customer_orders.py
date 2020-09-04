@@ -49,7 +49,7 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
 
             partner_code = order_list[0].get('CUSTOMER-CODE', '').strip()
             partner_id = partner_ids.get(partner_code)
-            shipping_id = partner_ids.get(order_list[0].get('CUSTOMER-CODE', '').strip())
+            shipping_id = partner_id
             order_name = order_list[0].get('ORDER-NO', '').strip()
             ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
