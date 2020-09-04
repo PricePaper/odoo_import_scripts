@@ -9,9 +9,31 @@ import multiprocessing as mp
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
+import logging.handlers
+import os
+import multiprocessing_logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
+
 # ==================================== SALE ORDER LINE ====================================
 
-def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
+def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -23,11 +45,15 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
 
             for line in data.get('lines', []):
                 product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
-                code = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
-                code = uom_ids.get(code)
+                code1 = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
+                code = uom_ids.get(code1)
+                order_no = line.get('ORDER-NO', '').strip()
 
-                if not product_id and not code:
-                    error_ids.append()
+                if not product_id:
+                    logger.error('Product Missing - {0} {1}'.format(line.get('ITEM-CODE', '').strip(), order_no, code1))
+                    continue
+                if not code:
+                    logger.error('UOM Missing - {0} {1} {2}'.format(order_no,  line.get('ITEM-CODE', '').strip()))
                     continue
                 if product_id in order_line_ids and code == order_line_ids[product_id]:
                     continue
@@ -42,10 +68,12 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
                         'working_cost':line.get('TRUE-FIXED-COST').strip(),
                         'lst_price':line.get('PRICE-DISCOUNTED').strip(),
                         'product_uom': code,
+                        'tax_id': False
                         }
 
                 tax = ''
                 if line.get('TAX-CODE') == '0':
+                    print(line.get('ORDER-NO'), order_tax_code_ids.get(line.get('ORDER-NO')))
                     tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('ORDER-NO')))))
                     vals['tax_id'] = [(6, 0, [tax])]
 
@@ -53,20 +81,20 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
                 print(pid, 'Create - SALE ORDER LINE', order_id , res)
 
         except Exception as e:
-            print(e)
+            logger.error('Exception {}'.format(e))
+            data_pool.append(data)
 
 
 def sync_sale_order_lines():
     manager = mp.Manager()
     data_pool = manager.list()
-    error_ids = manager.list()
     process_Q = []
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
     order_ids = {rec['name'] : rec['id']  for rec in res}
 
-    fp = open('files/omlordr2.csv', 'r')
+    fp = open('omlordr2.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     order_lines = {}
@@ -93,11 +121,11 @@ def sync_sale_order_lines():
     tax1 = {float(tax['amount']): tax['id'] for tax in taxes}
     tax_ids = manager.dict(tax1)
 
-    fp1 = open('files/fiscal.csv', 'r')
+    fp1 = open('files/omltxau1.csv', 'r')
     csv_reader1 = csv.DictReader(fp1)
     tax_codes={}
     for line in csv_reader1:
-        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT')
+        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT        ')
     tax_code_ids = manager.dict(tax_codes)
 
     fp2 = open('files/omlordr1.csv', 'r')
@@ -105,7 +133,13 @@ def sync_sale_order_lines():
     oder_tax_codes={}
     for line in csv_reader2:
         oder_tax_codes[line.get('ORDER-NO').strip()] = line.get('TAX-AUTH-CODE')
+
+    fp3 = open('files/omlhist1.csv', 'r')
+    csv_reader3 = csv.DictReader(fp3)
+    for line in csv_reader3:
+        oder_tax_codes[line.get('ORDER-NO').strip()] = line.get('TAX-AUTH-CODE')
     order_tax_code_ids = manager.dict(oder_tax_codes)
+
 
     res = None
     order_ids = None
@@ -116,7 +150,7 @@ def sync_sale_order_lines():
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
-        worker = mp.Process(name=pid, target=update_sale_order_line, args=(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
+        worker = mp.Process(name=pid, target=update_sale_order_line, args=(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
         process_Q.append(worker)
         worker.start()
 
