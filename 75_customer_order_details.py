@@ -39,7 +39,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== SALE ORDER LINE ====================================
 
-def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
+def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -53,14 +53,17 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
                 try:
                     line = lines.pop()
                     product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
-                    code = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
-                    code = uom_ids.get(code)
+                    code1 = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
+                    code = uom_ids.get(code1)
 
-                    if not product_id and not code:
-                        error_ids.append()
+                    if not product_id:
+                        logger.error('Product Missing - {0} {1}'.format(line.get('ITEM-CODE', '').strip(), line.get('INVOICE-NO', '').strip()))
+                        continue
+                    if not code:
+                        logger.error('UOM Missing - {0} {1} {2}'.format(code1, order_id, line.get('ITEM-CODE', '').strip()))
                         continue
                     if product_id in order_line_ids and code == order_line_ids[product_id]:
-                        logger.debug('Duplicate - {}'.format(line))
+                        logger.debug('Duplicate - {0} {1}'.format(order_id,product_id))
                         continue
 
                     vals = {
@@ -74,6 +77,7 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
                         'working_cost': line.get('TRUE-FIXED-COST').strip(),
                         'lst_price': line.get('PRICE-DISCOUNTED').strip(),
                         'product_uom': code,
+                        'tax_id': False
                     }
 
                     tax = ''
@@ -116,7 +120,6 @@ def update_sale_order_line(pid, data_pool, error_ids, product_ids, uom_ids, tax_
 def sync_sale_order_lines():
     manager = mp.Manager()
     data_pool = manager.list()
-    error_ids = manager.list()
     process_Q = []
 
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
@@ -149,11 +152,11 @@ def sync_sale_order_lines():
     tax1 = {float(tax['amount']): tax['id'] for tax in taxes}
     tax_ids = manager.dict(tax1)
 
-    fp1 = open('files/fiscal.csv', 'r')
+    fp1 = open('files/omltxau1.csv', 'r')
     csv_reader1 = csv.DictReader(fp1)
     tax_codes={}
     for line in csv_reader1:
-        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT')
+        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT        ')
     tax_code_ids = manager.dict(tax_codes)
 
     fp2 = open('files/omlhist1.csv', 'r')
@@ -178,7 +181,7 @@ def sync_sale_order_lines():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order_line,
-                            args=(pid, data_pool, error_ids, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
+                            args=(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
         process_Q.append(worker)
         worker.start()
 
