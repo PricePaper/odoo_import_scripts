@@ -64,7 +64,7 @@ def sync_vendor_price():
     vendors = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', [('supplier', '=', True ), '|', ('active', '=', False), ('active', '=', True)], ['id','customer_code'])
     partner_ids = {vendor['customer_code']: vendor['id'] for vendor in vendors}
 
-    supplier_info = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'search_read', [], ['id','name','product_id'])
+    supplier_info = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'search_read', [('product_id', '!=', False)], ['id','name','product_id'])
     supplier_price_ids = {info['product_id'][0]: [info['name'][0], info['id']] for info in supplier_info}
 
     products_tmpl = sock.execute(DB, UID, PSW, 'product.template', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['id','default_code'])

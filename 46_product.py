@@ -7,6 +7,28 @@ from xmlrpc import client as xmlrpclib
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
+import logging.handlers
+import os
+import time
+import multiprocessing_logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== P R O D U C T S ====================================
 
@@ -53,9 +75,7 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                 print(pid, 'CREATE - PRODUCT', res)
 
         except Exception as e:
-            print(e)
-            break
-
+            logger.error('Error {}'.format(e))
 
 def sync_products():
     manager = mp.Manager()
