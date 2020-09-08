@@ -159,11 +159,25 @@ def sync_sale_order_lines():
         tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT        ')
     tax_code_ids = manager.dict(tax_codes)
 
+
+    shipto_tax={}
+    fp3 = open('files/omlshpt1.csv', 'r')
+    csv_reader3 = csv.DictReader(fp3)
+    for vals in csv_reader3:
+        ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
+        shipto_tax[ship_code] = vals.get('TAX-AUTH-CODE').strip()
+
+
     fp2 = open('files/omlhist1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
     oder_tax_codes={}
     for line in csv_reader2:
-        oder_tax_codes[line.get('INVOICE-NO').strip()] = line.get('TAX-AUTH-CODE')
+        ship_to_code = line.get('SHIP-TO-CODE', False)
+        if  ship_to_code and ship_to_code != 'SAME':
+            ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
+            oder_tax_codes[line.get('INVOICE-NO').strip()] = shipto_tax.get(ship_code)
+        else:
+            oder_tax_codes[line.get('INVOICE-NO').strip()] = line.get('TAX-AUTH-CODE')
     order_tax_code_ids = manager.dict(oder_tax_codes)
 
 
