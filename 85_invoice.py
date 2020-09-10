@@ -38,7 +38,7 @@ def sync_invoices():
     order_ids = {inv_no: rec['id'] for rec in res for inv_no in (rec['note'] or '').split(',')}
 
     orders = []
-    with open('rclopen1.csv', newline='') as f:
+    with open('files/rclopen1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
             inv_no = vals.get('INVOICE-NO', '').strip()

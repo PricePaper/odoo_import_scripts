@@ -94,7 +94,7 @@ def sync_sale_order_lines():
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
     order_ids = {rec['name'] : rec['id']  for rec in res}
 
-    fp = open('omlordr2.csv', 'r')
+    fp = open('files/omlordr2.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
     order_lines = {}
