@@ -11,7 +11,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 # =================================== C U S T O M E R ========================================
 
 def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids,
-                    additional_salerep, partner_emails, error_ids):
+                    additional_salerep, partner_emails, customer_dates):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
 
@@ -53,7 +53,13 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
                 'company_type': 'company',
                 'bill_with_goods': bill_with_goods,
                 'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE').strip()),
+                'last_paid_date': data.get('DATE-LAST-PYMT')
             }
+            if customer_code in customer_dates:
+                line = customer_dates.get(customer_code, '')
+                vals['established_date'] = line['ESTBL-DATE']
+                vals['last_sold_date'] = line['LST-SLS-DATE']
+                print(vals)
             # If we have an email address for the partner, add it to vals
             partner_email = partner_emails.get(customer_code)
             if partner_email:
@@ -83,7 +89,6 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
 def sync_customers():
     manager = mp.Manager()
     data_pool = manager.list()
-    error_ids = manager.list()
     write_ids = manager.dict()
     categ_ids = manager.dict()
     term_ids = manager.dict()
@@ -93,6 +98,7 @@ def sync_customers():
     sale_rep_ids = manager.dict()
     rule_ids = manager.dict()
     partner_emails = manager.dict()
+    customer_dates = manager.dict()
 
     process_Q = []
 
@@ -112,6 +118,13 @@ def sync_customers():
             data_pool.append(vals)
             customer_code = vals['CUSTOMER-CODE'].strip()
             customer_codes.append(customer_code)
+
+    with open('files/rclcust2.csv', 'r') as fp3:
+        csv_reader3 = csv.DictReader(fp3)
+        for vals in csv_reader3:
+            customer_code = vals['CUSTOMER-CODE'].strip()
+            customer_dates[customer_code] = vals
+    print(customer_dates)
 
     with open('files/rclemail.csv') as fp2:
         csv_reader2 = csv.DictReader(fp2)
@@ -157,7 +170,7 @@ def sync_customers():
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_customer, args=(
             pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids,
-            additional_salerep, partner_emails, error_ids))
+            additional_salerep, partner_emails, customer_dates))
         process_Q.append(worker)
         worker.start()
 
