@@ -59,7 +59,7 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
                 line = customer_dates.get(customer_code, '')
                 vals['established_date'] = line['ESTBL-DATE']
                 vals['last_sold_date'] = line['LST-SLS-DATE']
-                print(vals)
+                #print(vals)
             # If we have an email address for the partner, add it to vals
             partner_email = partner_emails.get(customer_code)
             if partner_email:
@@ -124,7 +124,7 @@ def sync_customers():
         for vals in csv_reader3:
             customer_code = vals['CUSTOMER-CODE'].strip()
             customer_dates[customer_code] = vals
-    print(customer_dates)
+    #print(customer_dates)
 
     with open('files/rclemail.csv') as fp2:
         csv_reader2 = csv.DictReader(fp2)
