@@ -63,7 +63,8 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                     'sale_uoms': [(6, 0, [uom_ids.get(code)])],
                     'uom_id': uom_ids.get(code),
                     'uom_po_id': uom_ids.get(code),
-                    'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
+                    'volume': data.get('ITEM-CUBE').strip(),
+                    'weight': data.get('ITEM-WEIGHT').strip(),
                     'property_stock_location': location_ids.get(default_code)
                     }
 
