@@ -99,8 +99,8 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                             'price': line.get('CURRENT-PRICE-IN-STK', 0),
                             'price_last_updated': line.get('LAST-PRICE-CHANGE-DA').strip()
                         }
-                        if price_list not in shared_list:
-                            vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
+                        # if price_list not in shared_list:
+                        #     vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
                         status = ''
                         if product_id in pricelist_line_ids and uom_id in pricelist_line_ids[product_id]:
                             write_id = pricelist_line_ids[product_id][uom_id][1]
@@ -108,16 +108,26 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                             logger.debug('{} UPDATE - LINE'.format(pid, status))
                         else:
                             status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
+                            if product_id in pricelist_line_ids:
+                                if uom_id not in pricelist_line_ids[product_id]:
+                                    pricelist_line_ids[product_id][uom_id] = [vals.get('price', ''), status]
+                            else:
+                                pricelist_line_ids[product_id] = {uom_id: [vals.get('price', ''), status]}
                             if status % 100 != 0:
                                 logger.debug('CREATE - LINE'.format(pid, status))
                             else:
                                 logger.info('CREATE - LINE'.format(pid, status))
+                    else:
+                        logger.warning("UOM Missing: {0} {1} {2}".format(uom_code, price_list, product_code))
+                else:
+                    logger.warning("Product Missing: {0} {1}".format(product_code, price_list,  ))
             except xmlrpc.client.ProtocolError:
                 logger.warning("ProtocolError: adding {} back to the work queue".format(vals))
                 lines.append(line)
                 time.sleep(random.randint(1, 3))
                 continue
-
+            except Exception as e:
+                logger.error("Error {0} {1}".format(vals, e))
 
 def sync_price_list():
     manager = mp.Manager()
