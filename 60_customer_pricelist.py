@@ -64,14 +64,19 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
             write_ids[price_list] = pricelist_id
 
         line_ids = sock.execute(DB, UID, PSW, 'customer.product.price', 'search_read',
-                                [('pricelist_id', '=', pricelist_id)], ['product_id', 'product_uom', 'price'])
+                                [('pricelist_id', '=', pricelist_id),('pricelist_id', '!=', False)],
+                                ['product_id', 'product_uom', 'price'])
+
         pricelist_line_ids = {}
         for rec in line_ids:
-            if rec['product_id'][0] in pricelist_line_ids:
-                if rec['product_uom'][0] not in pricelist_line_ids[rec['product_id'][0]]:
-                    pricelist_line_ids[rec['product_id'][0]][rec['product_uom'][0]] = [rec['price'], rec['id']]
+            if pricelist_id in pricelist_line_ids:
+                if rec['product_id'][0] in pricelist_line_ids[pricelist_id]:
+                    if rec['product_uom'][0] not in pricelist_line_ids[pricelist_id][rec['product_id'][0]]:
+                        pricelist_line_ids[pricelist_id][rec['product_id'][0]][rec['product_uom'][0]] = [rec['price'], rec['id']]
+                else:
+                    pricelist_line_ids[pricelist_id][rec['product_id'][0]] = {rec['product_uom'][0]: [rec['price'], rec['id']]}
             else:
-                pricelist_line_ids[rec['product_id'][0]] = {rec['product_uom'][0]: [rec['price'], rec['id']]}
+                pricelist_line_ids[pricelist_id] = {rec['product_id'][0]: {rec['product_uom'][0]: [rec['price'], rec['id']]}}
 
         lines = data.get('lines', [])
         line = ''
@@ -88,7 +93,8 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                     uom_code = uom + '_' + broken_uom[product_code][uom]
                     uom_id = uom_ids.get(uom_code)
                 else:
-                    logger.error('UOM mismatch: {}'.format(line))
+                    logger.error('UOM mismatch: {0} {1} {2}'.format(price_list, product_code, uom))
+                    continue
 
                 if product_id:
                     if uom_id:
@@ -102,32 +108,39 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                         # if price_list not in shared_list:
                         #     vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
                         status = ''
-                        if product_id in pricelist_line_ids and uom_id in pricelist_line_ids[product_id]:
-                            write_id = pricelist_line_ids[product_id][uom_id][1]
-                            status = sock.execute(DB, UID, PSW, 'customer.product.price', 'write', write_id, vals)
-                            logger.debug('{} UPDATE - LINE'.format(pid, status))
+                        if pricelist_id in pricelist_line_ids:
+                            if product_id in pricelist_line_ids[pricelist_id]:
+                                if uom_id in pricelist_line_ids[pricelist_id][product_id]:
+                                    logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
+                                    continue
+                        status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
+                        if pricelist_id in pricelist_line_ids:
+                            if product_id in pricelist_line_ids[pricelist_id]:
+                                if uom_id not in pricelist_line_ids[pricelist_id][product_id]:
+                                    pricelist_line_ids[pricelist_id][product_id][uom_id] = [vals.get('price', ''), status]
+                            else:
+                                pricelist_line_ids[pricelist_id][product_id] = {uom_id: [vals.get('price', ''), status]}
                         else:
-                            status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
-                            if product_id in pricelist_line_ids:
-                                if uom_id not in pricelist_line_ids[product_id]:
-                                    pricelist_line_ids[product_id][uom_id] = [vals.get('price', ''), status]
-                            else:
-                                pricelist_line_ids[product_id] = {uom_id: [vals.get('price', ''), status]}
-                            if status % 100 != 0:
-                                logger.debug('CREATE - LINE'.format(pid, status))
-                            else:
-                                logger.info('CREATE - LINE'.format(pid, status))
+                            pricelist_line_ids[pricelist_id] = {product_id : {uom_id: [vals.get('price', ''), status]}}
+                        if status % 100 != 0:
+                            logger.debug('CREATE - LINE'.format(pid, status))
+                        else:
+                            logger.info('CREATE - LINE'.format(pid, status))
                     else:
-                        logger.warning("UOM Missing: {0} {1} {2}".format(uom_code, price_list, product_code))
+                        logger.warning("UOM Missing: {0} {1} {2}".format(uom, price_list, product_code))
                 else:
-                    logger.warning("Product Missing: {0} {1}".format(product_code, price_list,  ))
+                    logger.warning("Product Missing: {0} {1}".format(product_code, price_list))
             except xmlrpc.client.ProtocolError:
                 logger.warning("ProtocolError: adding {} back to the work queue".format(vals))
                 lines.append(line)
                 time.sleep(random.randint(1, 3))
                 continue
+            except xmlrpc.client.Fault as err:
+                if err.faultCode == 'Already a record with same product and same UOM exists in Pricelist':
+                    logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
             except Exception as e:
-                logger.error("Error {0} {1}".format(vals, e))
+                logger.error(" Error {0} {1}".format(vals, e))
+
 
 def sync_price_list():
     manager = mp.Manager()
