@@ -9,6 +9,7 @@ import random
 import time
 import xmlrpc.client
 from xmlrpc import client as xmlrpclib
+import datetime
 
 # Get this using pip
 import multiprocessing_logging
@@ -108,11 +109,11 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                         # if price_list not in shared_list:
                         #     vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
                         status = ''
-                        if pricelist_id in pricelist_line_ids:
-                            if product_id in pricelist_line_ids[pricelist_id]:
-                                if uom_id in pricelist_line_ids[pricelist_id][product_id]:
-                                    logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
-                                    continue
+                        # if pricelist_id in pricelist_line_ids:
+                        #     if product_id in pricelist_line_ids[pricelist_id]:
+                        #         if uom_id in pricelist_line_ids[pricelist_id][product_id]:
+                        #             logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
+                        #             continue
                         status = sock.execute(DB, UID, PSW, 'customer.product.price', 'create', vals)
                         if pricelist_id in pricelist_line_ids:
                             if product_id in pricelist_line_ids[pricelist_id]:
@@ -136,8 +137,27 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                 time.sleep(random.randint(1, 3))
                 continue
             except xmlrpc.client.Fault as err:
-                if err.faultCode == 'Already a record with same product and same UOM exists in Pricelist':
-                    logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
+                if err.faultCode[:67] == 'Already a record with same product and same UOM exists in Pricelist':
+                    res = sock.execute(DB, UID, PSW, 'customer.product.price', 'search_read',
+                    [('pricelist_id', '=', pricelist_id),
+                    ('product_id', '=', product_id), ('product_uom', '=', uom_id)], ['price_last_updated'])
+                    if res:
+                        val_date = vals['price_last_updated']
+                        list_date = res[0].get('price_last_updated', False)
+                        format_str = '%m/%d/%y'
+                        val_date = datetime.datetime.strptime(val_date, format_str).date()
+                        format_str = '%Y-%m-%d'
+                        if list_date:
+                            list_date = datetime.datetime.strptime(list_date, format_str).date()
+                        if not list_date or list_date < val_date:
+                            id = res[0]['id']
+                            status = sock.execute(DB, UID, PSW, 'customer.product.price', 'write', id, vals)
+                            logger.debug('Update - LINE'.format(pid, status))
+                    else:
+                        logger.debug('{0} {1} {2} Duplicate Value - LINE'.format(price_list, product_code, uom))
+                else:
+                    logger.error(" Error {0} {1}".format(vals, e))
+
             except Exception as e:
                 logger.error(" Error {0} {1}".format(vals, e))
 
