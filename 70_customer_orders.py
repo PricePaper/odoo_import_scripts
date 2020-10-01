@@ -92,7 +92,7 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'is_delivery': True
                     }
                     sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
-                if misc_charge !='0':
+                if freight_charge !='0':
                     frieght_vals = {
                     'order_id': res,
                     'product_id': delivery_product_id,
