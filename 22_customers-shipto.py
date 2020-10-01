@@ -10,7 +10,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # =================================== C U S T O M E R ========================================
 
-def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids, error_ids):
+def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids, error_ids, delivery_notes):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
 
@@ -37,12 +37,13 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids
                 'vat': data['SHIP-RESALE-NUMBER'].strip(),
                 'property_account_position_id': fiscal_ids.get(data.get('TAX-AUTH-CODE').strip()),
                 'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE')),
+                'delivery_notes': delivery_notes.get(customer_code, '')
             }
 
             res = write_ids.get(customer_code, [])
             if res:
                 sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
-                print(pid, 'UPDATE - CUSTOMER', res)
+                print(pid, 'UPDATE - CUSTOMER', res, customer_code)
             else:
                 res = sock.execute(DB, UID, PSW, 'res.partner', 'create', vals)
                 print(pid, 'CREATE - CUSTOMER', res, customer_code)
@@ -59,6 +60,7 @@ def sync_customers():
     term_ids = manager.dict()
     fiscal_ids = manager.dict()
     carrier_ids = manager.dict()
+    delivery_notes = manager.dict()
 
     process_Q = []
 
@@ -68,6 +70,27 @@ def sync_customers():
         csv_reader = csv.DictReader(fp)
         for vals in csv_reader:
             data_pool.append(vals)
+
+    with open('files/omlcsin1.csv', 'r') as fp5:
+        csv_reader5 = csv.DictReader(fp5)
+        for vals in csv_reader5:
+            customer_code = vals['CUSTOMER-CODE'].strip()
+            if customer_code and vals['SHIP-TO-CODE'].strip():
+                customer_code = customer_code + '-' + vals['SHIP-TO-CODE'].strip()
+            note=''
+            if vals['LINE-1']:
+                note += vals['LINE-1']+'\n'
+            if vals['LINE-2']:
+                note += vals['LINE-2']+'\n'
+            if vals['LINE-3']:
+                note += vals['LINE-3']+'\n'
+            if vals['LINE-4']:
+                note += vals['LINE-4']+'\n'
+            if vals['LINE-5']:
+                note += vals['LINE-5']+'\n'
+            if vals['LINE-6']:
+                note += vals['LINE-6']
+            delivery_notes[customer_code] = note
 
     domain = ['|',('active', '=', False), ('active', '=', True)]
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -92,7 +115,8 @@ def sync_customers():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_customer, args=(
-            pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids, error_ids))
+            pid, data_pool, write_ids, fiscal_ids, term_ids,
+            carrier_ids, error_ids, delivery_notes))
         process_Q.append(worker)
         worker.start()
 
