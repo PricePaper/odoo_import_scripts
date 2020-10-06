@@ -27,13 +27,12 @@ def update_cross_ref(pid, data_pool, product_ids, config_id, product_sku_ref_ids
                 res = product_sku_ref_ids.get(product_ids.get(default_code, ''), '')
                 if res:
                     sock.execute(DB, UID, PSW, 'product.sku.reference', 'write', res, vals)
-                    print(pid, 'UPDATE - PRODUCT', res)
+                    print(pid, 'UPDATE - PRODUCT', res, config_id)
                 else:
                     res = sock.execute(DB, UID, PSW, 'product.sku.reference', 'create', vals)
                     print(pid, 'CREATE - PRODUCT', res)
         except Exception as e:
-            print(e)
-            break
+            print(e, vals, config_id)
 
 
 def sync_cross_ref(file, competitor, file_header):
