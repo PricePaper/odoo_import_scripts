@@ -32,7 +32,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== P R O D U C T S ====================================
 
-def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids):
+def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids, sale_uoms):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -48,6 +48,22 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                 if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
                     active = False
 
+            sale_uom_ids = []
+            if default_code in sale_uoms:
+                for uom in sale_uoms[default_code]:
+                    sale_uom_id = uom_ids.get(uom)
+                    if sale_uom_id:
+                        sale_uom_ids.append(sale_uom_id)
+                    else:
+                        logger.debug('SALE UOM missing uom:{0} product:{1}'.format(uom,default_code))
+            uom_id = uom_ids.get(code)
+            if uom_id:
+                sale_uom_ids.append(uom_id)
+            else:
+                logger.error('UOM missing uom:{0} product:{1}'.format(uom,default_code))
+                continue
+
+
             vals = {'name': data.get('ITEM-DESC').strip().title(),
                     'description_sale': data.get('ITEM-DESC').strip().lower(),
                     'description_purchase': data.get('ITEM-DESCR2').strip().lower(),
@@ -60,13 +76,14 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                     'taxes_id':[(6, 0, [3])],
                     'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
                     'purchase_ok': purchase_ok,
-                    'sale_uoms': [(6, 0, [uom_ids.get(code)])],
+                    'sale_uoms': [(6, 0, sale_uom_ids)],
                     'uom_id': uom_ids.get(code),
                     'uom_po_id': uom_ids.get(code),
                     'volume': data.get('ITEM-CUBE').strip(),
                     'weight': data.get('ITEM-WEIGHT').strip(),
                     'property_stock_location': location_ids.get(default_code)
                     }
+
 
             res = write_ids.get(default_code, [])
             if res:
@@ -76,8 +93,9 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                 res = sock.execute(DB, UID, PSW, 'product.product', 'create', vals)
                 print(pid, 'CREATE - PRODUCT', res)
 
+
         except Exception as e:
-            logger.error('Error {}'.format(e))
+            logger.error('Error {0} {1}'.format(vals, e))
 
 def sync_products():
     manager = mp.Manager()
@@ -87,6 +105,7 @@ def sync_products():
     uom_ids = manager.dict()
     category_ids = manager.dict()
     location_ids = manager.dict()
+
 
     process_Q = []
 
@@ -110,6 +129,20 @@ def sync_products():
         default_code = vals['ITEM-CODE'].strip()
         default_codes.append(default_code)
 
+    sale_uoms={}
+
+    fp2 = open('files/ivlitum1.csv', 'r')
+    csv_reader2 = csv.DictReader(fp2)
+    for line in csv_reader2:
+        product = line.get('ITEM-CODE', '').strip()
+        code = str(line.get('UOM')).strip() + '_' + str(line.get('QTY')).strip()
+        if product in sale_uoms:
+            sale_uoms[product].append(code)
+        else:
+            sale_uoms[product] = [code]
+
+    sale_uoms = manager.dict(sale_uoms)
+
     fp.close()
 
     domain = [('default_code', 'in', default_codes), '|', ('active', '=', False), ('active', '=', True)]
@@ -131,7 +164,7 @@ def sync_products():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_product,
-                            args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids))
+                            args=(pid, data_pool, create_ids, write_ids, uom_ids, category_ids, location_ids, sale_uoms))
         process_Q.append(worker)
         worker.start()
 
