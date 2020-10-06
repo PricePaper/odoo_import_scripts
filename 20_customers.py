@@ -147,7 +147,7 @@ def sync_customers():
                 note += vals['LINE-5']+'\n'
             if vals['LINE-6']:
                 note += vals['LINE-6']
-            delivery_notes[customer_code] = note
+            delivery_notes[customer_code] = note.capitalize()
 
     with open('files/rclemail.csv') as fp2:
         csv_reader2 = csv.DictReader(fp2)

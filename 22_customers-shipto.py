@@ -90,7 +90,7 @@ def sync_customers():
                 note += vals['LINE-5']+'\n'
             if vals['LINE-6']:
                 note += vals['LINE-6']
-            delivery_notes[customer_code] = note
+            delivery_notes[customer_code] = note.capitalize()
 
     domain = ['|',('active', '=', False), ('active', '=', True)]
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
