@@ -20,13 +20,12 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids
             data = data_pool.pop()
             customer_code = data.get('CUSTOMER-CODE', False)+'-'+data.get('SHIP-TO-CODE', False)
             parent = write_ids.get(data.get('CUSTOMER-CODE', False))
-            city, state = data['SHIP-CITY-STATE'].strip().split(',')
-            state = state.strip()
+            city, state = [x.strip().lstrip() for x in data['SHIP-CITY-STATE'].split(',')]
             vals = {
-                'name': data['SHIP-1ST-NAME'].strip().title(),
+                'name': data['SHIP-1ST-NAME'].title(),
                 'type': 'delivery',
-                'corp_name': data['SHIP-2ND-NAME'].strip().title(),
-                'street': data['SHIP-STREET'].strip().title(),
+                'corp_name': data['SHIP-2ND-NAME'].title(),
+                'street': data['SHIP-STREET'].title(),
                 'city': city.title(),
                 'active': True,
                 'customer': True,
@@ -34,8 +33,8 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids
                 'phone': data['SHIP-PHONE'],
                 'customer_code': customer_code,
                 'parent_id': parent,
-                'vat': data['SHIP-RESALE-NUMBER'].strip(),
-                'property_account_position_id': fiscal_ids.get(data.get('TAX-AUTH-CODE').strip()),
+                'vat': data['SHIP-RESALE-NUMBER'],
+                'property_account_position_id': fiscal_ids.get(data.get('TAX-AUTH-CODE')),
                 'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE')),
                 'delivery_notes': delivery_notes.get(customer_code, '')
             }
@@ -74,9 +73,9 @@ def sync_customers():
     with open('files/omlcsin1.csv', 'r') as fp5:
         csv_reader5 = csv.DictReader(fp5)
         for vals in csv_reader5:
-            customer_code = vals['CUSTOMER-CODE'].strip()
-            if customer_code and vals['SHIP-TO-CODE'].strip():
-                customer_code = customer_code + '-' + vals['SHIP-TO-CODE'].strip()
+            customer_code = vals['CUSTOMER-CODE']
+            if customer_code and vals['SHIP-TO-CODE']:
+                customer_code = customer_code + '-' + vals['SHIP-TO-CODE']
             note=''
             if vals['LINE-1']:
                 note += vals['LINE-1']+'\n'

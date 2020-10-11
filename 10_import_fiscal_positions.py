@@ -20,7 +20,7 @@ with open("ERROR.csv", "w") as f, open("Missing.csv", "w") as f1:
     count=0
     for line in input_file:
         try:
-            tax = float(line.get('TAX-AUTH-PCT        '))
+            tax = float(line.get('TAX-AUTH-PCT'))
             if tax in tax1:
                 name = line['TAX-AUTH-DESC'].strip()
                 if name not in fiscal_positions:
@@ -34,8 +34,8 @@ with open("ERROR.csv", "w") as f, open("Missing.csv", "w") as f1:
                     status = socket.execute(db, 2, pwd, 'account.fiscal.position', 'create', vals)
                     print (status)
             else:
-                f1.write(line.get('TAX-AUTH-DESC').strip())
+                f1.write(line.get('TAX-AUTH-DESC'))
                 f1.write('\n')
         except:
-            f.write(line.get('TAX-AUTH-DESC').strip())
+            f.write(line.get('TAX-AUTH-DESC'))
             f.write('\n')

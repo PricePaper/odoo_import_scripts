@@ -17,9 +17,9 @@ uoms = {uom['name']: uom['id'] for uom in uoms}
 
 with open("ERROR.csv", "w") as f:
     for line in input_file:
-        code = str(line.get('UOM')).strip() + '_' + str(line.get('QTY')).strip()
-        code = code.strip()
-        factor = line.get('QTY').strip()
+        code = str(line.get('UOM')) + '_' + str(line.get('QTY'))
+        code = code
+        factor = line.get('QTY')
         factor = float(factor)
         uom_type = 'bigger' if factor > 0 else 'smaller'
         if code not in uoms:
@@ -37,9 +37,9 @@ with open("ERROR.csv", "w") as f:
                 f.write(code)
                 f.write('\n')
     for line in input_file1:
-        code = str(line.get('ITEM-STOCK-UOM')).strip() + '_' + str(line.get('ITEM-QTY-IN-STOCK-UM')).strip()
-        code = code.strip()
-        factor = line.get('ITEM-QTY-IN-STOCK-UM').strip()
+        code = str(line.get('ITEM-STOCK-UOM')) + '_' + str(line.get('ITEM-QTY-IN-STOCK-UM'))
+        code = code
+        factor = line.get('ITEM-QTY-IN-STOCK-UM')
         factor = float(factor)
         uom_type = 'bigger' if factor > 0 else 'smaller'
         if code not in uoms:

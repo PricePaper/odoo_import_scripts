@@ -17,18 +17,18 @@ def sync_invoices():
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
             try:
-                name = vals.get('1ST-NAME', '').strip()
+                name = vals.get('1ST-NAME', '')
                 if name == 'VOID':
                     continue
                 else:
-                    order_no = vals.get('ORDER-NO', '').strip()
+                    order_no = vals.get('ORDER-NO', '')
                     order_id = order_ids.get(order_no)
                     if order_id:
                         res = sock.execute(DB, UID, PSW, 'sale.order', 'action_confirm', order_id,)
                         print('Confirm - order', order_id, order_no)
                         inv_id = sock.execute(DB, UID, PSW, 'account.invoice', 'search_read', [('origin', '=', order_no)], ['id'])
                         inv_id = inv_id[0]['id']
-                        sock.execute(DB, UID, PSW, 'account.invoice', 'write', inv_id, {'name': vals.get('INVOICE-NO', '').strip()})
+                        sock.execute(DB, UID, PSW, 'account.invoice', 'write', inv_id, {'name': vals.get('INVOICE-NO', '')})
             except Exception as e:
                 print(e)
 

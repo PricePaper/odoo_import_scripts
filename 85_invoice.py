@@ -38,7 +38,7 @@ def sync_invoices():
     with open('files/rclopen1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
-            inv_no = vals.get('INVOICE-NO', '').strip()
+            inv_no = vals.get('INVOICE-NO', '')
             order_id = order_ids.get(inv_no)
             if order_id:
                 orders.put(order_id)

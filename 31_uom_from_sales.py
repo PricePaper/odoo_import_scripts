@@ -20,9 +20,9 @@ count = 0
 
 with open("ERROR.csv", "wb") as f:
     for line in input_file:
-        code = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
-        code = code.strip()
-        factor = line.get('QTY-IN-ORDERING-UM').strip()
+        code = str(line.get('ORDERING-UOM')) + '_' + str(line.get('QTY-IN-ORDERING-UM'))
+        code = code
+        factor = line.get('QTY-IN-ORDERING-UM')
         factor = float(factor)
         uom_type = 'bigger' if factor > 0 else 'smaller'
         if code not in uoms:

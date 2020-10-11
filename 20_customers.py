@@ -18,26 +18,25 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
         try:
             customer_code = ''
             data = data_pool.pop()
-            customer_code = data['CUSTOMER-CODE'].strip()
-            city, state = data['CITY-STATE'].strip().split(',')
-            state = state.strip()
+            customer_code = data['CUSTOMER-CODE']
+            city, state = [x.strip().lstrip() for x in data['CITY-STATE'].split(',')]
             bill_with_goods = True
             if data['BWG'] == 'N':
                 bill_with_goods = False
             # Handle bad partner categories by setting as Undefined -- MUST BE in DB already
-            categ_name = data.get('CLASS-CODE').strip()
+            categ_name = data.get('CLASS-CODE')
             categ_id = categ_ids.get(categ_name)
             if not categ_id:
                 categ_id = categ_ids.get('UNDEF')
             # Check terms code, if '00' then customer is inactive
             active = True
-            term_code = data.get('TERM-CODE').strip()
+            term_code = data.get('TERM-CODE')
             if term_code == "0":
                 active = False
             vals = {
-                'name': data['1ST-NAME'].strip().title(),
-                'corp_name': data['2ND-NAME'].strip().title(),
-                'street': data['STREET'].strip().title(),
+                'name': data['1ST-NAME'].title(),
+                'corp_name': data['2ND-NAME'].title(),
+                'street': data['STREET'].title(),
                 'city': city.title(),
                 'active': active,
                 'customer': True,
@@ -45,14 +44,15 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
                 'phone': data['PHONE-NO'],
                 'customer_code': customer_code,
                 'credit_limit': data['CREDIT-LIMIT'],
-                'vat': data['RESALE-NO'].strip(),
-                'customer_ranking': data['CUSTOMER-RANK'].strip(),
+                'vat': data['RESALE-NO'],
+                'rnk_lst_3_mon': data['CUSTOMER-RANK'],
+                'rnk_lst_12_mon': data['CUSTOMER-RANK'],
                 'category_id': [(6, 0, [categ_id])],
-                'property_account_position_id': fiscal_ids.get(data.get('TAX-AUTH-CODE').strip()),
+                'property_account_position_id': fiscal_ids.get(data.get('TAX-AUTH-CODE')),
                 'property_payment_term_id': term_ids.get(term_code),
                 'company_type': 'company',
                 'bill_with_goods': bill_with_goods,
-                'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE').strip()),
+                'property_delivery_carrier_id': carrier_ids.get(data.get('CARRIER-CODE')),
                 'last_paid_date': data.get('DATE-LAST-PYMT'),
                 'delivery_notes': delivery_notes.get(customer_code, '')
             }
@@ -73,8 +73,8 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
                 print(pid, 'UPDATE - CUSTOMER', res)
             else:
                 vals['commission_percentage_ids'] = [
-                    (0, 0, {'sale_person_id': sale_rep_ids.get(data.get('SALESMAN-CODE').strip()),
-                            'rule_id': rule_ids.get(sale_rep_ids.get(data.get('SALESMAN-CODE').strip()))})]
+                    (0, 0, {'sale_person_id': sale_rep_ids.get(data.get('SALESMAN-CODE')),
+                            'rule_id': rule_ids.get(sale_rep_ids.get(data.get('SALESMAN-CODE')))})]
                 if customer_code in additional_salerep:
                     vals['commission_percentage_ids'].append(
                         (0, 0, {'sale_person_id': sale_rep_ids.get(additional_salerep[customer_code]),
@@ -108,7 +108,7 @@ def sync_customers():
     with open('files/rclcsms1.csv', 'r') as fp1:
         csv_reader1 = csv.DictReader(fp1)
         for vals in csv_reader1:
-            rep_code = vals.get('CUST-OV-SALESREP-2', '').strip()
+            rep_code = vals.get('CUST-OV-SALESREP-2', '')
             customer_code = vals.get('CUSTOMER-CODE', False)
             if rep_code:
                 additional_salerep[customer_code] = rep_code
@@ -118,22 +118,22 @@ def sync_customers():
         csv_reader = csv.DictReader(fp)
         for vals in csv_reader:
             data_pool.append(vals)
-            customer_code = vals['CUSTOMER-CODE'].strip()
+            customer_code = vals['CUSTOMER-CODE']
             customer_codes.append(customer_code)
 
     with open('files/rclcust2.csv', 'r') as fp3:
         csv_reader3 = csv.DictReader(fp3)
         for vals in csv_reader3:
-            customer_code = vals['CUSTOMER-CODE'].strip()
+            customer_code = vals['CUSTOMER-CODE']
             customer_dates[customer_code] = vals
     #print(customer_dates)
 
     with open('files/omlcsin1.csv', 'r') as fp5:
         csv_reader5 = csv.DictReader(fp5)
         for vals in csv_reader5:
-            customer_code = vals['CUSTOMER-CODE'].strip()
-            if customer_code and vals['SHIP-TO-CODE'].strip():
-                customer_code = customer_code + '-' + vals['SHIP-TO-CODE'].strip()
+            customer_code = vals['CUSTOMER-CODE']
+            if customer_code and vals['SHIP-TO-CODE']:
+                customer_code = customer_code + '-' + vals['SHIP-TO-CODE']
             note=''
             if vals['LINE-1']:
                 note += vals['LINE-1']+'\n'
@@ -155,7 +155,7 @@ def sync_customers():
             customer_code = vals.get('CUSTOMER-CODE')
             customer_email = vals.get('CUST-E-MAIL-ADD')
             if customer_code and customer_email :
-                primary_email = vals.get('PRIMARY-EMAIL       ', '').strip()
+                primary_email = vals.get('PRIMARY-EMAIL', '')
                 if primary_email == "Y":
                     partner_emails[customer_code.strip()] = customer_email.strip()
 

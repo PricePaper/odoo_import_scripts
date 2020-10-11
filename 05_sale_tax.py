@@ -16,7 +16,7 @@ file_taxes = []
 
 with open("ERROR.csv", "wb") as f:
     for line in input_file:
-        tax = float(line.get('TAX-AUTH-PCT        '))
+        tax = float(line.get('TAX-AUTH-PCT'))
         if tax not in file_taxes:
             file_taxes.append(tax)
 for tax in file_taxes:

@@ -15,20 +15,20 @@ def update_customer(pid, data_pool, write_ids, term_ids):
         try:
             customer_code = ''
             data = data_pool.pop()
-            customer_code = data.get('VEND-CODE').strip()
+            customer_code = data.get('VEND-CODE')
             vals = {
-                'name': data.get('VEND-NAME', '').strip().title(),
-                'street': data.get('VEND-ADDR1', '').strip().title(),
-                'street2': data.get('VEND-ADDR2', '').strip().title(),
-                'city': data.get('VEND-CITY', '').strip().title(),
+                'name': data.get('VEND-NAME', '').title(),
+                'street': data.get('VEND-ADDR1', '').title(),
+                'street2': data.get('VEND-ADDR2', '').title(),
+                'city': data.get('VEND-CITY', '').title(),
                 'active': True,
                 'customer': False,
                 'supplier': True,
-                'property_supplier_payment_term_id': term_ids.get(data.get('TERM-CODE').strip()),
-                'zip': data.get('VEND-ZIP-CODE').strip(),
-                'phone': data.get('VEND-PHONE').strip(),
-                'vat': data.get('VEND-TAX-ID').strip(),
-                'customer_code': data.get('VEND-CODE').strip(),
+                'property_supplier_payment_term_id': term_ids.get(data.get('TERM-CODE')),
+                'zip': data.get('VEND-ZIP-CODE'),
+                'phone': data.get('VEND-PHONE'),
+                'vat': data.get('VEND-TAX-ID'),
+                'customer_code': data.get('VEND-CODE'),
             }
 
             res = write_ids.get(customer_code, [])
@@ -59,7 +59,7 @@ def sync_customers():
     customer_codes = []
     for vals in csv_reader:
         data_pool.append(vals)
-        customer_code = vals['VEND-CODE'].strip()
+        customer_code = vals['VEND-CODE']
         customer_codes.append(customer_code)
 
     fp.close()

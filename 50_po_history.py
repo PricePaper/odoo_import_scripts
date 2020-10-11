@@ -16,16 +16,16 @@ def update_purchase_order(pid, data_pool, error_ids, write_ids, partner_ids, ter
             data = data_pool.pop()
             order_no = data.get('ORDR-NUM', '')
 
-            partner_id = partner_ids.get(data.get('VEND-CODE', '').strip())
-            term_id = term_ids.get(data.get('TERM-CODE', '').strip())
+            partner_id = partner_ids.get(data.get('VEND-CODE', ''))
+            term_id = term_ids.get(data.get('TERM-CODE', ''))
             if not partner_id or not term_id:
                 error_ids.append(order_no)
                 continue
 
-            vals={'name': data.get('ORDR-NUM', '').strip(),
+            vals={'name': data.get('ORDR-NUM', ''),
                   'partner_id': partner_id,
-                  'date_order': data.get('ORDR-DATE').strip(),
-                  'release_date': data.get('ORDR-RELEASE-DATE').strip(),
+                  'date_order': data.get('ORDR-DATE'),
+                  'release_date': data.get('ORDR-RELEASE-DATE'),
                   'payment_term_id': term_id,
                   # 'state': 'purchase'
                   }

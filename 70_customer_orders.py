@@ -47,10 +47,10 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
             order_no = data.get('ref', '')
             order_list = data.get('orders', [])
 
-            partner_code = order_list[0].get('CUSTOMER-CODE', '').strip()
+            partner_code = order_list[0].get('CUSTOMER-CODE', '')
             partner_id = partner_ids.get(partner_code)
             shipping_id = partner_id
-            order_name = order_list[0].get('ORDER-NO', '').strip()
+            order_name = order_list[0].get('ORDER-NO', '')
             ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
             if  ship_to_code and ship_to_code != 'SAME':
@@ -59,35 +59,38 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                 if not shipping_id:
                     logger.error('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
                     continue
-            term_id = term_ids.get(order_list[0].get('TERM-CODE', '').strip())
+            term_id = term_ids.get(order_list[0].get('TERM-CODE', ''))
             if not partner_id:
                 logger.error('Partner Missing - Order NO:{0} Partner Code:{1}'.format(order_name, partner_code))
                 continue
 
-            inv_no = ','.join(order.get('INVOICE-NO', '').strip() for order in order_list)
+            inv_no = ','.join(order.get('INVOICE-NO', '') for order in order_list)
             vals = {
-                'name': order_list[0].get('ORDER-NO', '').strip(),
+                'name': order_list[0].get('ORDER-NO', ''),
                 'partner_id': partner_id,
                 'partner_shipping_id':shipping_id,
                 'note': inv_no,
                 'payment_term_id': term_id,
-                'date_order': order_list[0].get('ORDER-DATE', '').strip(),
-                'confirmation_date': order_list[0].get('ORDER-DATE', '').strip(),
+                'date_order': order_list[0].get('ORDER-DATE', ''),
+                'confirmation_date': order_list[0].get('ORDER-DATE', ''),
                 'user_id': user_id,
-                'carrier_id': carrier_ids.get(order_list[0].get('CARRIER-CODE').strip())
+                'carrier_id': carrier_ids.get(order_list[0].get('CARRIER-CODE'))
             }
 
             try:
                 res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
-                print(pid, 'CREATE - SALE ORDER', res, order_no)
-                misc_charge = order_list[0].get('MISC-CHARGE', 0).strip()
+                if res % 100 != 0:
+                    logger.debug(pid, 'CREATE - SALE ORDER', res, order_no)
+                else:
+                    logger.info(pid, 'CREATE - SALE ORDER', res, order_no)
+                misc_charge = order_list[0].get('MISC-CHARGE', 0)
                 freight_charge = order_list[0].get('FREIGHT-AMT', 0)
                 if misc_charge !='0':
                     misc_vals = {
                     'order_id': res,
                     'product_id': misc_product_id,
                     'name': 'MISC CHARGES',
-                    'price_unit': order_list[0].get('MISC-CHARGE', 0).strip(),
+                    'price_unit': order_list[0].get('MISC-CHARGE', 0),
                     'product_uom_qty': 1,
                     'is_delivery': True
                     }
@@ -109,7 +112,6 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
         except Exception as e:
             logger.error('Exception --- error:{}'.format(e))
         finally:
-            print('finally')
             data_pool.task_done()
 
 def sync_sale_orders():
@@ -123,21 +125,21 @@ def sync_sale_orders():
     orders = {}
     existing_orders = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
     existing_orders = [rec['name'] for rec in existing_orders]
-    print(len(existing_orders))
+    logger.debug(len(existing_orders))
 
 
     with open('files/omlhist1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
-            if vals['CUSTOMER-CODE'].strip() == 'VOID':
+            if vals['CUSTOMER-CODE'] == 'VOID':
                 continue
-            if vals['ORDER-NO'].strip() in existing_orders:
+            if vals['ORDER-NO'] in existing_orders:
                 continue
             else:
-                order_no = vals['ORDER-NO'].strip()
+                order_no = vals['ORDER-NO']
                 orders.setdefault(order_no, [])
                 orders[order_no].append(vals)
-    print(len(orders))
+    logger.debug(len(orders))
 
     for ref in orders:
         data_pool.put({'ref': ref, 'orders': orders[ref]})

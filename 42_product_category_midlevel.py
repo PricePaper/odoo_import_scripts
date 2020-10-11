@@ -20,24 +20,24 @@ input_file = csv.DictReader(open(input_file))
 
 with open("ERROR_mj.csv", "w") as f, open("parent_missing_mj.csv", "w") as f1:
     for line in input_file:
-        if line.get('CATEGORY').strip() in categories:
+        if line.get('CATEGORY') in categories:
             try:
-                vals={'categ_code': line.get('MAJOR-CLASS', '').strip(),
-                      'name': line.get('MAJOR-DESC').strip().title(),
-                      'parent_id': categories.get(line.get('CATEGORY').strip()),
+                vals={'categ_code': line.get('MAJOR-CLASS', ''),
+                      'name': line.get('MAJOR-DESC').title(),
+                      'parent_id': categories.get(line.get('CATEGORY')),
                       }
-                if line.get('MAJOR-CLASS').strip() not in categories:
+                if line.get('MAJOR-CLASS') not in categories:
                     status = socket.execute(db, 2, pwd, 'product.category', 'create', vals)
                     print (status)
                 else:
-                    category_id = categories.get(line.get('MAJOR-CLASS').strip())
+                    category_id = categories.get(line.get('MAJOR-CLASS'))
                     status = socket.execute(db, 2, pwd, 'product.category', 'write', category_id, vals)
                     print (status)
             except:
                 print ('Exception')
-                f.write(line.get('MAJOR-CLASS').strip())
+                f.write(line.get('MAJOR-CLASS'))
                 f.write('\n')
         else:
             print(line)
-            f1.write(line.get('MAJOR-CLASS').strip())
+            f1.write(line.get('MAJOR-CLASS'))
             f1.write('\n')

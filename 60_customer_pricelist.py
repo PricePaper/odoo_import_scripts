@@ -45,7 +45,7 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
     while data_pool:
         # try:
         data = data_pool.pop()
-        price_list = data.get('pricelist_id', '').strip()
+        price_list = data.get('pricelist_id', '')
         pricelist_id = write_ids.get(price_list, '')
         if not pricelist_id:
             vals = {
@@ -84,10 +84,10 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
         while len(lines) > 0:
             try:
                 line = lines.pop()
-                product_code = line.get('ITEM-CODE', '').strip()
+                product_code = line.get('ITEM-CODE', '')
                 product = product_ids.get(product_code)
                 product_id = product and product[0]
-                uom = line.get('PRICING-UOM').strip()
+                uom = line.get('PRICING-UOM')
                 if product and uom == product[1][1].split('_')[0]:
                     uom_id = product[1][0]
                 elif product_code in broken_uom and uom in broken_uom[product_code]:
@@ -104,7 +104,7 @@ def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist
                             'product_id': product_id,
                             'product_uom': uom_id,
                             'price': line.get('CURRENT-PRICE-IN-STK', 0),
-                            'price_last_updated': line.get('LAST-PRICE-CHANGE-DA').strip()
+                            'price_last_updated': line.get('LAST-PRICE-CHANGE-DA')
                         }
                         # if price_list not in shared_list:
                         #     vals['partner_id'] = partner_ids.get(line.get('CUSTOMER-CODE').strip())
@@ -176,28 +176,28 @@ def sync_price_list():
 
     broken_uom = {}
     for vals in csv_reader2:
-        product_code = vals.get('ITEM-CODE').strip()
+        product_code = vals.get('ITEM-CODE')
         if product_code not in broken_uom:
-            broken_uom[product_code] = {vals.get('UOM').strip(): vals.get('QTY').strip()}
+            broken_uom[product_code] = {vals.get('UOM'): vals.get('QTY')}
         else:
-            if vals.get('UOM').strip() not in broken_uom[product_code]:
-                broken_uom[product_code][vals.get('UOM').strip()] = vals.get('QTY').strip()
+            if vals.get('UOM') not in broken_uom[product_code]:
+                broken_uom[product_code][vals.get('UOM')] = vals.get('QTY')
     broken_uom = manager.dict(broken_uom)
 
     shared_dict = {}
     shared_list = []
 
     for vals in csv_reader1:
-        if vals.get('PRICING-ACCT-NO', '').strip():
-            shared_dict[vals.get('CUSTOMER-CODE').strip()] = vals.get('PRICING-ACCT-NO', '').strip()
-            if vals.get('PRICING-ACCT-NO', '').strip() not in shared_list:
-                shared_list.append(vals.get('PRICING-ACCT-NO', '').strip())
+        if vals.get('PRICING-ACCT-NO', ''):
+            shared_dict[vals.get('CUSTOMER-CODE')] = vals.get('PRICING-ACCT-NO', '')
+            if vals.get('PRICING-ACCT-NO', '') not in shared_list:
+                shared_list.append(vals.get('PRICING-ACCT-NO', ''))
     shared_list = manager.list(shared_list)
     shared_dict = manager.dict(shared_dict)
 
     price_lists = {}
     for vals in csv_reader:
-        customer_code = vals.get('CUSTOMER-CODE').strip()
+        customer_code = vals.get('CUSTOMER-CODE')
         if customer_code in shared_dict:
             continue
         lines = price_lists.setdefault(customer_code, [])
@@ -269,15 +269,15 @@ def sync_partner_pricelist():
     shared_dict = {}
 
     for vals in csv_reader1:
-        if vals.get('PRICING-ACCT-NO', '').strip():
-            shared_dict[vals.get('CUSTOMER-CODE').strip()] = vals.get('PRICING-ACCT-NO', '').strip()
+        if vals.get('PRICING-ACCT-NO', ''):
+            shared_dict[vals.get('CUSTOMER-CODE')] = vals.get('PRICING-ACCT-NO', '')
 
     for rec in shared_dict:
         partner_id = partner_ids.get(rec, '')
-        shared_id = pricelist_ids.get(shared_dict.get(rec, '').strip())
+        shared_id = pricelist_ids.get(shared_dict.get(rec, ''))
         if partner_id in customer_price_list:
             unlink_list = customer_price_list.get(partner_id, '')
-            shared_id = pricelist_ids.get(shared_dict.get(rec, '').strip())
+            shared_id = pricelist_ids.get(shared_dict.get(rec, ''))
             if unlink_list:
                 sock.execute(DB, UID, PSW, 'customer.pricelist', 'unlink', unlink_list)
                 logger.debug('Deleted {}'.format(unlink_list))

@@ -21,7 +21,7 @@ if not stock_location:
 else:
     for line in input_file:
         try:
-            loc = line.get('BIN-CODE', '').strip()
+            loc = line.get('BIN-CODE', '')
             if loc and loc not in all_locations:
                 vals = {
                        'name':loc,

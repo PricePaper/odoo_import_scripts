@@ -19,16 +19,16 @@ with open("Catg_upd_ERROR.csv", "w") as f:
 
     for line in input_file:
         try:
-            vals = {'code': line.get('CLASS-CODE          ').strip(),
-                    'name': line.get('CLASS-DESC          ').strip()
+            vals = {'code': line.get('CLASS-CODE'),
+                    'name': line.get('CLASS-DESC')
                     }
-            if line.get('CLASS-CODE          ').strip() in categories:
-                id = categories.get(line.get('CLASS-CODE          ').strip())
+            if line.get('CLASS-CODE') in categories:
+                id = categories.get(line.get('CLASS-CODE'))
                 status = socket.execute(db, 2, pwd, 'res.partner.category', 'write', id, vals)
                 print (status)
             else:
                 status = socket.execute(db, 2, pwd, 'res.partner.category', 'create', vals)
                 print(status)
         except:
-            f.write(line.get('CLASS-CODE          ').strip())
+            f.write(line.get('CLASS-CODE'))
             f.write('\n')

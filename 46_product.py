@@ -38,12 +38,12 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
         try:
             data = data_pool.pop()
 
-            default_code = data.get('ITEM-CODE').strip()
-            code = str(data.get('ITEM-STOCK-UOM')).strip() + '_' + str(data.get('ITEM-QTY-IN-STOCK-UM')).strip()
+            default_code = data.get('ITEM-CODE')
+            code = str(data.get('ITEM-STOCK-UOM')) + '_' + str(data.get('ITEM-QTY-IN-STOCK-UM'))
             active = True
             purchase_ok = True
             #  Comment out because inactive items break order imports
-            if data.get('ITEM-STATUS').strip() and data.get('ITEM-STATUS').strip() == 'D':
+            if data.get('ITEM-STATUS') and data.get('ITEM-STATUS') == 'D':
                 purchase_ok = False,
                 if float(data.get('ITEM-QTY-ON-HAND')) <= 0.0:
                     active = False
@@ -64,23 +64,23 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
                 continue
 
 
-            vals = {'name': data.get('ITEM-DESC').strip().title(),
-                    'description_sale': data.get('ITEM-DESC').strip().lower(),
-                    'description_purchase': data.get('ITEM-DESCR2').strip().lower(),
+            vals = {'name': data.get('ITEM-DESC').title(),
+                    'description_sale': data.get('ITEM-DESC').lower(),
+                    'description_purchase': data.get('ITEM-DESCR2').lower(),
                     'default_code': default_code,
-                    'categ_id': category_ids.get(data.get('PROD-CODE').strip()),
+                    'categ_id': category_ids.get(data.get('PROD-CODE')),
                     'active': active,
                     'type': 'product',
-                    'standard_price': data.get('ITEM-UNIT-COST').strip(),
+                    'standard_price': data.get('ITEM-UNIT-COST'),
                     'sale_ok': True,
                     'taxes_id':[(6, 0, [3])],
-                    'lst_price': data.get('ITEM-AVG-SELL-PRC').strip(),
+                    'lst_price': data.get('ITEM-AVG-SELL-PRC'),
                     'purchase_ok': purchase_ok,
                     'sale_uoms': [(6, 0, sale_uom_ids)],
                     'uom_id': uom_ids.get(code),
                     'uom_po_id': uom_ids.get(code),
-                    'volume': data.get('ITEM-CUBE').strip(),
-                    'weight': data.get('ITEM-WEIGHT').strip(),
+                    'volume': data.get('ITEM-CUBE'),
+                    'weight': data.get('ITEM-WEIGHT'),
                     'property_stock_location': location_ids.get(default_code)
                     }
 
@@ -121,12 +121,12 @@ def sync_products():
 
     for vals in csv_reader1:
         if vals['BIN-CODE'] and vals['BIN-CODE'] in all_locations:
-            location_ids[vals['ITEM-CODE'].strip()] = all_locations[vals['BIN-CODE']]
+            location_ids[vals['ITEM-CODE']] = all_locations[vals['BIN-CODE']]
 
     default_codes = []
     for vals in csv_reader:
         data_pool.append(vals)
-        default_code = vals['ITEM-CODE'].strip()
+        default_code = vals['ITEM-CODE']
         default_codes.append(default_code)
 
     sale_uoms={}
@@ -134,8 +134,8 @@ def sync_products():
     fp2 = open('files/ivlitum1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
     for line in csv_reader2:
-        product = line.get('ITEM-CODE', '').strip()
-        code = str(line.get('UOM')).strip() + '_' + str(line.get('QTY')).strip()
+        product = line.get('ITEM-CODE', '')
+        code = str(line.get('UOM')) + '_' + str(line.get('QTY'))
         if product in sale_uoms:
             sale_uoms[product].append(code)
         else:

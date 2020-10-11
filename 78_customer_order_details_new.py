@@ -44,16 +44,16 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
 
 
             for line in data.get('lines', []):
-                product_id = product_ids.get(line.get('ITEM-CODE', '').strip())
-                code1 = str(line.get('ORDERING-UOM')).strip() + '_' + str(line.get('QTY-IN-ORDERING-UM')).strip()
+                product_id = product_ids.get(line.get('ITEM-CODE', ''))
+                code1 = str(line.get('ORDERING-UOM')) + '_' + str(line.get('QTY-IN-ORDERING-UM'))
                 code = uom_ids.get(code1)
-                order_no = line.get('ORDER-NO', '').strip()
+                order_no = line.get('ORDER-NO', '')
 
                 if not product_id:
-                    logger.error('Product Missing - {0} {1}'.format(line.get('ITEM-CODE', '').strip(), order_no, code1))
+                    logger.error('Product Missing - {0} {1}'.format(line.get('ITEM-CODE', ''), order_no, code1))
                     continue
                 if not code:
-                    logger.error('UOM Missing - {0} {1} {2}'.format(order_no,  line.get('ITEM-CODE', '').strip()))
+                    logger.error('UOM Missing - {0} {1} {2}'.format(order_no,  line.get('ITEM-CODE', '')))
                     continue
                 if product_id in order_line_ids and code == order_line_ids[product_id]:
                     continue
@@ -61,12 +61,12 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
                 vals = {
                         'order_id': order_id,
                         'product_id': product_id,
-                        'name': line.get('ITEM-DESC').strip(),
-                        'price_unit': line.get('PRICE-DISCOUNTED').strip(),
-                        'product_uom_qty': line.get('QTY-ORDERED').strip(),
+                        'name': line.get('ITEM-DESC'),
+                        'price_unit': line.get('PRICE-DISCOUNTED'),
+                        'product_uom_qty': line.get('QTY-ORDERED'),
                         'is_last': False,
-                        'working_cost':line.get('TRUE-FIXED-COST').strip(),
-                        'lst_price':line.get('PRICE-DISCOUNTED').strip(),
+                        'working_cost':line.get('TRUE-FIXED-COST'),
+                        'lst_price':line.get('PRICE-DISCOUNTED'),
                         'product_uom': code,
                         'tax_id': False
                         }
@@ -99,7 +99,7 @@ def sync_sale_order_lines():
 
     order_lines = {}
     for vals in csv_reader:
-        ord_no = vals.get('ORDER-NO', '').strip()
+        ord_no = vals.get('ORDER-NO', '')
         order_id = order_ids.get(ord_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])
@@ -125,7 +125,7 @@ def sync_sale_order_lines():
     csv_reader1 = csv.DictReader(fp1)
     tax_codes={}
     for line in csv_reader1:
-        tax_codes[line.get('TAX-AUTH-CODE').strip()] = line.get('TAX-AUTH-PCT        ')
+        tax_codes[line.get('TAX-AUTH-CODE')] = line.get('TAX-AUTH-PCT')
     tax_code_ids = manager.dict(tax_codes)
 
     shipto_tax={}
@@ -133,7 +133,7 @@ def sync_sale_order_lines():
     csv_reader4 = csv.DictReader(fp4)
     for vals in csv_reader4:
         ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
-        shipto_tax[ship_code] = vals.get('TAX-AUTH-CODE').strip()
+        shipto_tax[ship_code] = vals.get('TAX-AUTH-CODE')
 
     fp2 = open('files/omlordr1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
@@ -142,9 +142,9 @@ def sync_sale_order_lines():
         ship_to_code = line.get('SHIP-TO-CODE', False)
         if  ship_to_code and ship_to_code != 'SAME':
             ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
-            oder_tax_codes[line.get('ORDER-NO').strip()] = shipto_tax.get(ship_code)
+            oder_tax_codes[line.get('ORDER-NO')] = shipto_tax.get(ship_code)
         else:
-            oder_tax_codes[line.get('ORDER-NO').strip()] = line.get('TAX-AUTH-CODE')
+            oder_tax_codes[line.get('ORDER-NO')] = line.get('TAX-AUTH-CODE')
 
     fp3 = open('files/omlhist1.csv', 'r')
     csv_reader3 = csv.DictReader(fp3)
@@ -152,9 +152,9 @@ def sync_sale_order_lines():
         ship_to_code = line.get('SHIP-TO-CODE', False)
         if  ship_to_code and ship_to_code != 'SAME':
             ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
-            oder_tax_codes[line.get('ORDER-NO').strip()] = shipto_tax.get(ship_code)
+            oder_tax_codes[line.get('ORDER-NO')] = shipto_tax.get(ship_code)
         else:
-            oder_tax_codes[line.get('ORDER-NO').strip()] = line.get('TAX-AUTH-CODE')
+            oder_tax_codes[line.get('ORDER-NO')] = line.get('TAX-AUTH-CODE')
 
     order_tax_code_ids = manager.dict(oder_tax_codes)
 

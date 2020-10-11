@@ -16,12 +16,12 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
         vals={}
         try:
             data = data_pool.pop()
-            product_id = product_ids.get(data.get('ITEM-CODE').strip())
-            vendor_id =  partner_ids.get(data.get('PRIME-VEND-CODE').strip())
+            product_id = product_ids.get(data.get('ITEM-CODE'))
+            vendor_id =  partner_ids.get(data.get('PRIME-VEND-CODE'))
             if product_id and vendor_id:
                 vals={'name': vendor_id,
                     'product_id': product_id,
-                    'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE').strip())
+                    'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE'))
                     }
 
                 if product_id in supplier_price_ids and vendor_id == supplier_price_ids[product_id][0]:
@@ -31,7 +31,7 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
                     status = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'create', vals)
                     print ('Create - Vendor - info', status, product_id, vendor_id)
             else:
-                print(data.get('ITEM-CODE').strip(), data.get('PRIME-VEND-CODE').strip())
+                print(data.get('ITEM-CODE'), data.get('PRIME-VEND-CODE'))
         except Exception as e:
             print(e)
             break

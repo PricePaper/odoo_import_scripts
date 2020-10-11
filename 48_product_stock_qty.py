@@ -16,8 +16,8 @@ def update_product(pid, data_pool, product_ids, location_ids):
         try:
             data = data_pool.pop()
 
-            default_code = data.get('ITEM-CODE').strip()
-            location = data.get('BIN-CODE').strip()
+            default_code = data.get('ITEM-CODE')
+            location = data.get('BIN-CODE')
             new_quantity = float(data.get('ON-HAND-QTY'))
             if product_ids.get(default_code) and location_ids.get(location) and new_quantity>0:
 

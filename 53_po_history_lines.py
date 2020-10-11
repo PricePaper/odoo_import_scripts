@@ -54,26 +54,26 @@ def update_purchase_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
             while len(lines) > 0:
                 try:
                     line = lines.pop()
-                    product_name = line.get('ITEM-CODE', '').strip()
+                    product_name = line.get('ITEM-CODE', '')
                     product_id = product_ids.get(product_name)
-                    code1 = str(line.get('ORDR-UOM')).strip() + '_' + str(line.get('ORDR-VAL-QTY')).strip()
+                    code1 = str(line.get('ORDR-UOM')) + '_' + str(line.get('ORDR-VAL-QTY'))
                     code = uom_ids.get(code1)
                     if not product_id:
-                        error_ids.append((line.get('ORDR-NUM', '').strip(), product_name))
+                        error_ids.append((line.get('ORDR-NUM', ''), product_name))
                         continue
                     if not code:
-                        error_ids.append((line.get('ORDR-NUM', '').strip(), code))
+                        error_ids.append((line.get('ORDR-NUM', ''), code))
                         continue
                     if product_id in order_line_ids:
                         logger.debug('Duplicate - {}'.format(line))
                         continue
                     vals = {'product_id': product_id,
                             'product_uom': code,
-                            'price_unit': line.get('ORDR-UNIT-COST').strip(),
-                            'product_qty': line.get('ORDR-QTY').strip(),
-                            'name': line.get('ITEM-DESC', ' ').strip() + line.get('ITEM-DESCR2         ', ' ').strip(),
+                            'price_unit': line.get('ORDR-UNIT-COST'),
+                            'product_qty': line.get('ORDR-QTY'),
+                            'name': line.get('ITEM-DESC', ' ') + line.get('ITEM-DESCR', ' '),
                             'order_id': order_id,
-                            'date_planned': line.get('ORDR-LINE-REQD-DATE ', '').strip()
+                            'date_planned': line.get('ORDR-LINE-REQD-DATE', '')
                             }
 
                     res = sock.execute(DB, UID, PSW, 'purchase.order.line', 'create', vals)
@@ -122,7 +122,7 @@ def sync_purchase_order_lines():
 
     order_lines = {}
     for vals in csv_reader:
-        order_no = vals.get('ORDR-NUM', '').strip()
+        order_no = vals.get('ORDR-NUM', '')
         order_id = order_ids.get(order_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])

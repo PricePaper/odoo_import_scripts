@@ -15,8 +15,8 @@ def update_customer_terms(pid, data_pool, write_ids, error_ids):
         try:
             data = data_pool.pop()
             code = data.get('TERM-CODE')
-            vals = {'name': data.get('TERM-DESC').strip(),
-                    'note': data.get('TERM-DESC').strip(),
+            vals = {'name': data.get('TERM-DESC'),
+                    'note': data.get('TERM-DESC'),
                     'active': True,
                     'order_type': 'sale',
                     'code': code,
