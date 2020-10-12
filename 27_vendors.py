@@ -16,12 +16,16 @@ def update_customer(pid, data_pool, write_ids, term_ids):
             customer_code = ''
             data = data_pool.pop()
             customer_code = data.get('VEND-CODE')
+            
+            active = True
+            if data.get('VEND-STATUS') == "D":
+                active = False
             vals = {
                 'name': data.get('VEND-NAME', '').title(),
                 'street': data.get('VEND-ADDR1', '').title(),
                 'street2': data.get('VEND-ADDR2', '').title(),
                 'city': data.get('VEND-CITY', '').title(),
-                'active': True,
+                'active': active,
                 'customer': False,
                 'supplier': True,
                 'property_supplier_payment_term_id': term_ids.get(data.get('TERM-CODE')),

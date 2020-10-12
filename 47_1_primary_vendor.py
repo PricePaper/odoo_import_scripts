@@ -21,7 +21,8 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
             if product_id and vendor_id:
                 vals={'name': vendor_id,
                     'product_id': product_id,
-                    'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE'))
+                    'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE')),
+                    'price': data.get('ITEM-UNIT-COST', 1000000.00)
                     }
 
                 if product_id in supplier_price_ids and vendor_id == supplier_price_ids[product_id][0]:

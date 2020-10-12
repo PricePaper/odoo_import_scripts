@@ -4,12 +4,26 @@
 import csv
 import multiprocessing as mp
 from xmlrpc import client as xmlrpclib
+from datetime import datetime, timedelta
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 
 # ==================================== PRIMARY VENDOR ====================================
+def _get_price_expire_date(price_date):
+    """Compare date of price to current date. If price is current, return an empty string else 
+    return an expire date"""
 
+    try:
+        expire_date = price_date + timedelta(days=365)
+
+        if expire_date < datetime.now().date():
+            return expire_date.strftime("%Y-%m-%d")
+        
+        return ''
+    except Exception as e:
+        print(e)
+        return '2000-01-01'
 def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_price_ids, items_tmpl_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
@@ -17,12 +31,29 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
             data = data_pool.pop()
             product_id = product_ids.get(data.get('ITEM-CODE'))
             vendor_id =  partner_ids.get(data.get('VEND-CODE'))
+
+            # Get price date and see if we need to expire it or if it is current
+            price_date = data.get('ITEM-LAST-PURCH-DATE', '')
+            if not price_date:
+                price_date = data.get('ITEM-VEND-QUOT-DATE', '')
+
+            price_date = datetime.strptime(price_date, '%m/%d/%y').date()
+            price_expire_date = _get_price_expire_date(price_date)
+
             if product_id and vendor_id:
                 vals={'name': vendor_id,
                     'product_id': product_id,
                     'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE')),
-                    'price': data.get('ITEM-LAST-PURCH-COST'),
+                    'date_start': price_date.strftime('%Y-%m-%d')
                     }
+                # If there is an expire date, set it
+                if price_expire_date:
+                    vals['date_end'] = price_expire_date
+
+                # See if there is a price in the file, if yes, set it
+                price = data.get('ITEM-LAST-PURCH-COST','')
+                if price:
+                    vals['price'] = price
 
                 if product_id in supplier_price_ids and vendor_id == supplier_price_ids[product_id][0]:
                     status = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'write', supplier_price_ids[product_id][1], vals)
