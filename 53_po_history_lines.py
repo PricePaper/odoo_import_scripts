@@ -73,7 +73,9 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                             'qty_recieved':line.get('ORDR-REC-QTY'),
                             'name': line.get('ITEM-DESC', ' ') + line.get('ITEM-DESCR', ' '),
                             'order_id': order_id,
-                            'date_planned': line.get('ORDR-LINE-REQD-DATE', '')
+                            'date_planned': line.get('ORDR-REC-DATE', ''),
+                            'qty_received': line.get('ORDR-REC-QTY',''),
+                            'qty_to_receive': '0'
                             }
 
                     res = sock.execute(DB, UID, PSW, 'purchase.order.line', 'create', vals)
@@ -85,7 +87,7 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                     logger.warning("ProtocolError: adding {} back to the work queue".format(order_id))
                     lines.append(line)
                     time.sleep(random.randint(1, 3))
-                    continue
+                    continu:e
         except xmlrpc.client.Fault as fault:
             if fault.faultString.count('serialize'):
                 logger.warning('TransactionRollbackError - adding back to queue: ' + str(fault))
@@ -93,10 +95,10 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
             elif fault.faultString.count('Missing required fields on accountable sale order line'):
                 logger.error('Validation Error: {0}\n{1}'.format(fault, line))
             else:
-                logger.error('Unknown XMLRPC Fault: {}'.format(fault))
+                logger.error(f'Unknown XMLRPC Fault: {fault}\nOffending line: {line}')
             continue
         except Exception as e:
-            logger.critical('Unexpected exception: {}'.format(e))
+            logger.critical(f'Unexpected exception: {e}\nOffending line: {line}')
             continue
 
         except xmlrpc.client.ProtocolError:

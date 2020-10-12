@@ -94,10 +94,10 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
             elif fault.faultString.count('Missing required fields on accountable sale order line'):
                 logger.error('Validation Error: {0}\n{1}'.format(fault, line))
             else:
-                logger.error('Unknown XMLRPC Fault: {}'.format(fault))
+                logger.error(f'Unknown XMLRPC Fault: {fault}\nOffending line: {line}')
             continue
         except Exception as e:
-            logger.critical('Unexpected exception: {}'.format(e))
+            logger.critical(f'Unexpected exception: {e}\nOffending line: {line}')
             continue
 
         except xmlrpc.client.ProtocolError:
