@@ -38,7 +38,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 # ==================================== PURCHASE ORDER LINE ====================================
 
-def update_purchase_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
+def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -55,22 +55,22 @@ def update_purchase_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
                 try:
                     line = lines.pop()
                     product_name = line.get('ITEM-CODE', '')
-                    product_id = product_ids.get(product_name)
-                    code1 = str(line.get('ORDR-UOM')) + '_' + str(line.get('ORDR-VAL-QTY'))
-                    code = uom_ids.get(code1)
+                    product_id = product_ids.get(product_name)[0]
+                    uom_id = product_ids.get(product_name)[1]
                     if not product_id:
-                        error_ids.append((line.get('ORDR-NUM', ''), product_name))
+                        logger.error('Product Missing Error: {0}\n{1}'.format(product_name, line.get('ORDR-NUM', '')))
                         continue
-                    if not code:
-                        error_ids.append((line.get('ORDR-NUM', ''), code))
+                    if not uom_id:
+                        logger.error('Uom Missing Error: {0}\n{1}'.format(product_name, line.get('ORDR-NUM', '')))
                         continue
                     if product_id in order_line_ids:
                         logger.debug('Duplicate - {}'.format(line))
                         continue
                     vals = {'product_id': product_id,
-                            'product_uom': code,
+                            'product_uom': uom_id,
                             'price_unit': line.get('ORDR-UNIT-COST'),
                             'product_qty': line.get('ORDR-QTY'),
+                            'qty_recieved':line.get('ORDR-REC-QTY'),
                             'name': line.get('ITEM-DESC', ' ') + line.get('ITEM-DESCR', ' '),
                             'order_id': order_id,
                             'date_planned': line.get('ORDR-LINE-REQD-DATE', '')
@@ -109,7 +109,6 @@ def update_purchase_order_line(pid, data_pool, error_ids, product_ids, uom_ids):
 def sync_purchase_order_lines():
     manager = mp.Manager()
     data_pool = manager.list()
-    error_ids = manager.list()
     process_Q = []
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
@@ -133,8 +132,8 @@ def sync_purchase_order_lines():
     data_pool = manager.list([{'order_id': order, 'lines': order_lines[order]} for order in order_lines])
 
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read',
-                       ['|', ('active', '=', False), ('active', '=', True)], ['default_code'])
-    products = {rec['default_code']: rec['id'] for rec in res}
+               ['|', ('active', '=', False), ('active', '=', True)], ['default_code', 'uom_po_id'])
+    products = {rec['default_code']: [rec['id'], rec['uom_po_id'][0]] for rec in res}
     product_ids = manager.dict(products)
 
     uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
@@ -148,7 +147,7 @@ def sync_purchase_order_lines():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_purchase_order_line,
-                            args=(pid, data_pool, error_ids, product_ids, uom_ids))
+                            args=(pid, data_pool, product_ids, uom_ids))
         process_Q.append(worker)
         worker.start()
 
