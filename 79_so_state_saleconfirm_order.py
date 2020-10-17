@@ -52,18 +52,18 @@ def confirm_sale_orders():
     process_Q = []
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
-    # res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
-    # order_ids = {rec['name'] : rec['id']  for rec in res}
-    #
-    #
-    # with open('files/omlordr1.csv', newline='') as f:
-    #     csv_reader = csv.DictReader(f)
-    #     for vals in csv_reader:
-    #         order_no = vals['ORDER-NO']
-    #         order_id = order_ids.get(order_no)
-    #         if order_id:
-    #             data_pool.append(order_id)
-    data_pool.append(133811)
+    res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
+    order_ids = {rec['name'] : rec['id']  for rec in res}
+    
+
+    with open('files/omlordr1.csv', newline='') as f:
+         csv_reader = csv.DictReader(f)
+         for vals in csv_reader:
+             order_no = vals['ORDER-NO']
+             order_id = order_ids.get(order_no)
+             if order_id:
+                 data_pool.append(order_id)
+    #data_pool.append(133811)
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=order_confirmation, args=(pid, data_pool))
