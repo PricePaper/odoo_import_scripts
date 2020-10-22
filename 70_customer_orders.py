@@ -80,9 +80,9 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
             try:
                 res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
                 if res % 100 != 0:
-                    logger.debug(pid, 'CREATE - SALE ORDER', res, order_no)
+                    logger.debug(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
                 else:
-                    logger.info(pid, 'CREATE - SALE ORDER', res, order_no)
+                    logger.info(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
                 misc_charge = order_list[0].get('MISC-CHARGE', 0)
                 freight_charge = order_list[0].get('FREIGHT-AMT', 0)
                 if misc_charge !='0':
