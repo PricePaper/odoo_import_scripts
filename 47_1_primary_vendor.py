@@ -22,15 +22,16 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
                 vals={'name': vendor_id,
                     'product_id': product_id,
                     'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE')),
-                    'price': data.get('ITEM-UNIT-COST', 1000000.00)
+                    'price': data.get('ITEM-UNIT-COST', 1000000.00),
+                    'sequence':0
                     }
 
-                if product_id in supplier_price_ids and vendor_id == supplier_price_ids[product_id][0]:
-                    status = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'write', supplier_price_ids[product_id][1], vals)
-                    print ('Update - Vendor - info', supplier_price_ids[product_id][1], product_id, vendor_id)
+                if product_id in supplier_price_ids and vendor_id in supplier_price_ids[product_id]:
+                    status = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'write', supplier_price_ids[product_id][vendor_id], vals)
+                    print (pid, 'Update - Vendor - info', supplier_price_ids[product_id][vendor_id], product_id, vendor_id)
                 else:
                     status = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'create', vals)
-                    print ('Create - Vendor - info', status, product_id, vendor_id)
+                    print (pid, 'Create - Vendor - info', status, product_id, vendor_id)
             else:
                 print(data.get('ITEM-CODE'), data.get('PRIME-VEND-CODE'))
         except Exception as e:
@@ -43,7 +44,6 @@ def sync_primary_vendor():
     data_pool = manager.list()
     product_ids = manager.dict()
     partner_ids = manager.dict()
-    supplier_price_ids = manager.dict()
     items_tmpl_ids = manager.dict()
 
     process_Q = []
@@ -67,7 +67,14 @@ def sync_primary_vendor():
     partner_ids = {vendor['customer_code']: vendor['id'] for vendor in vendors}
 
     supplier_info = sock.execute(DB, UID, PSW, 'product.supplierinfo', 'search_read', [('product_id', '!=', False)], ['id','name','product_id'])
-    supplier_price_ids = {info['product_id'][0]: [info['name'][0], info['id']] for info in supplier_info}
+    supplier_price_ids ={}
+    for info in supplier_info:
+        if info['product_id'][0] in supplier_price_ids:
+            if info['name'][0] not in supplier_price_ids[info['product_id'][0]]:
+                supplier_price_ids[info['product_id'][0]][info['name'][0]] = info['id']
+        else:
+            supplier_price_ids[info['product_id'][0]] = {info['name'][0]: info['id']}
+    supplier_price_ids = manager.dict(supplier_price_ids)
 
     products_tmpl = sock.execute(DB, UID, PSW, 'product.template', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['id','default_code'])
     items_tmpl_ids = {product['default_code']: product['id'] for product in products_tmpl}
