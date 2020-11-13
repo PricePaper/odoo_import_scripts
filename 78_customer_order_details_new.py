@@ -76,7 +76,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
                     tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('ORDER-NO')))))
                     vals['tax_id'] = [(6, 0, [tax])]
 
-                res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals)
+                res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals, {'context':{'from_import': True}})
                 print(pid, 'Create - SALE ORDER LINE', order_id , res)
 
         except Exception as e:

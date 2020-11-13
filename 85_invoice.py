@@ -2,11 +2,36 @@
 # -*- coding: utf-8 -*-
 
 import csv
+import logging.handlers
+import os
+import time
 import multiprocessing as mp
 import xmlrpc.client as xmlrpclib
 import queue
 
+import multiprocessing_logging
+
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
 
 
 # ==================================== SALE ORDER ====================================
@@ -20,9 +45,9 @@ def update_invoice(pid, orders):
             break
         try:
             inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data)
-            print('Invoice created', pid, inv)
+            logger.info('Invoice created worker:{0} invoice_id:{1} '.format(pid,inv))
         except Exception as e:
-            print (data, e)
+            logger.error('Exception --- order id {0} error:{1}'.format(data,e))
 
 
 def sync_invoices():

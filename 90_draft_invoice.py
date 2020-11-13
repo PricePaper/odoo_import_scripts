@@ -2,8 +2,34 @@
 # -*- coding: utf-8 -*-
 
 import csv
+import logging.handlers
+import os
+import time
+import multiprocessing as mp
 import xmlrpc.client as xmlrpclib
+import queue
+
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+
 
 def sync_invoices():
 
@@ -24,11 +50,8 @@ def sync_invoices():
                     order_no = vals.get('ORDER-NO', '')
                     order_id = order_ids.get(order_no)
                     if order_id:
-                        res = sock.execute(DB, UID, PSW, 'sale.order', 'action_confirm', order_id,)
-                        print('Confirm - order', order_id, order_no)
-                        inv_id = sock.execute(DB, UID, PSW, 'account.invoice', 'search_read', [('origin', '=', order_no)], ['id'])
-                        inv_id = inv_id[0]['id']
-                        sock.execute(DB, UID, PSW, 'account.invoice', 'write', inv_id, {'name': vals.get('INVOICE-NO', '')})
+                        inv_id = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_draft_invoice_xmlrpc', order_id)
+                        logger.info('Created Invoice:{0}  Order:{1}',.format(pid,order_no) )
             except Exception as e:
                 print(e)
 
