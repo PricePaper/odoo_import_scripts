@@ -24,12 +24,13 @@ def _get_price_expire_date(price_date):
     except Exception as e:
         print(e)
         return '2000-01-01'
-def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_price_ids, items_tmpl_ids, primary_vendor):
+def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_price_ids, primary_vendor):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
             data = data_pool.pop()
-            product_id = product_ids.get(data.get('ITEM-CODE'))
+            product = product_ids.get(data.get('ITEM-CODE'))
+            product_id = product and product[0]
             vendor_id =  partner_ids.get(data.get('VEND-CODE'))
 
             # Get price date and see if we need to expire it or if it is current
@@ -46,7 +47,7 @@ def update_product_vendor(pid, data_pool, product_ids, partner_ids, supplier_pri
             if product_id and vendor_id:
                 vals={'name': vendor_id,
                     'product_id': product_id,
-                    'product_tmpl_id':items_tmpl_ids.get(data.get('ITEM-CODE')),
+                    'product_tmpl_id':product[1][0],
                     'date_start': price_date.strftime('%Y-%m-%d'),
                     'sequence': sequence
                     }
@@ -76,7 +77,6 @@ def sync_vendor_price():
     data_pool = manager.list()
     product_ids = manager.dict()
     partner_ids = manager.dict()
-    items_tmpl_ids = manager.dict()
 
     process_Q = []
 
@@ -102,8 +102,8 @@ def sync_vendor_price():
 
     domain = ['|', ('active', '=', False), ('active', '=', True)]
 
-    products =  sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code'])
-    product_ids = {rec['default_code']: rec['id'] for rec in products}
+    products =  sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code', 'product_tmpl_id'])
+    product_ids = {rec['default_code']: [rec['id'], rec['product_tmpl_id']] for rec in products}
 
     vendors = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', [('supplier', '=', True ), '|', ('active', '=', False), ('active', '=', True)], ['id','customer_code'])
     partner_ids = {vendor['customer_code']: vendor['id'] for vendor in vendors}
@@ -118,11 +118,6 @@ def sync_vendor_price():
             supplier_price_ids[info['product_id'][0]] = {info['name'][0]: info['id']}
     supplier_price_ids = manager.dict(supplier_price_ids)
 
-    products_tmpl = sock.execute(DB, UID, PSW, 'product.template', 'search_read', ['|', ('active', '=', False), ('active', '=', True)], ['id','default_code'])
-    items_tmpl_ids = {product['default_code']: product['id'] for product in products_tmpl}
-
-
-
     products = None
     vendors = None
     supplier_info = None
@@ -131,7 +126,7 @@ def sync_vendor_price():
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_product_vendor,
                             args=(pid, data_pool, product_ids, partner_ids,
-                             supplier_price_ids, items_tmpl_ids, primary_vendor))
+                             supplier_price_ids, primary_vendor))
         process_Q.append(worker)
         worker.start()
 
