@@ -83,6 +83,9 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
                     tax = ''
                     if line.get('TAX-CODE') == '0':
                         tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('INVOICE-NO')))))
+                        if not tax:
+                            logger.error('Error Tax missing: Tax:{0} Invoice:{1} Item:{2}'.format(tax_code_ids.get(order_tax_code_ids.get(line.get('INVOICE-NO'))),line.get('INVOICE-NO'),line.get('ITEM-CODE', '')))
+                            continue
                         vals['tax_id'] = [(6, 0, [tax])]
 
                     res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals, {'context':{'from_import': True}})
