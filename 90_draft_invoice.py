@@ -34,7 +34,7 @@ logger.addHandler(fh)
 def sync_invoices():
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
-    res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [('state', 'in' , ('draft', 'sent'))], ['name'])
+    res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [('state', 'in' , ('draft', 'sent', 'sale'))], ['name'])
     order_ids = {rec['name']: rec['id'] for rec in res}
 
 
@@ -51,7 +51,7 @@ def sync_invoices():
                     order_id = order_ids.get(order_no)
                     if order_id:
                         inv_id = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_draft_invoice_xmlrpc', order_id)
-                        logger.info('Created Invoice:{0}  Order:{1}',.format(pid,order_no) )
+                        logger.info('Created Invoice:{0}  Order:{1}'.format(inv_id,order_no) )
             except Exception as e:
                 print(e)
 
