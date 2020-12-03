@@ -44,29 +44,58 @@ def update_invoice(pid, orders):
         except:
             break
         try:
-            inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data)
-            logger.info('Invoice created worker:{0} invoice_id:{1} '.format(pid,inv))
+            inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data['ref'])
+            logger.info('invoice_id:{0} '.format(inv[0]))
+            if inv[1]['sale_amount'] == data['invoice'][1] and (inv[1]['sale_amount'] == inv[1]['invoice_amount'] or inv[1]['sale_amount'] == -inv[1]['invoice_amount']):
+                continue
+            logger.error('Amount Mismatch in CSV and invoice --- INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
+
         except Exception as e:
             logger.error('Exception --- order id {0} error:{1}'.format(data,e))
 
 
+
 def sync_invoices():
     manager = mp.Manager()
-    # orders = manager.list()
     orders = manager.JoinableQueue()
     process_Q = []
+    missing_invoices=[]
+    invoices=[]
+    duplicate={}
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['note'])
     order_ids = {inv_no: rec['id'] for rec in res for inv_no in (rec['note'] or '').split(',')}
 
+    orders_dict ={}
+
     with open('files/rclopen1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
             inv_no = vals.get('INVOICE-NO', '')
-            order_id = order_ids.get(inv_no)
+            if inv_no not in invoices:
+                invoices.append(inv_no)
+            elif inv_no in duplicate:
+                duplicate[inv_no] += 1
+            else:
+                duplicate[inv_no] = 2
+            order_id = order_ids.get(inv_no, False)
             if order_id:
-                orders.put(order_id)
+                if order_id not in orders_dict:
+
+                    orders_dict[order_id] = [inv_no, float(vals.get('NET-AMT', '0'))]
+                else:
+                    amt = orders_dict[order_id][2] + float(vals.get('NET-AMT', '0'))
+                    orders_dict[order_id] = [inv_no, amt]
+            else:
+                if inv_no not in missing_invoices:
+                    missing_invoices.append(inv_no)
+    for ref in orders_dict:
+        orders.put({'ref': ref, 'invoice': orders_dict[ref]})
+    logger.info('Number of orders to process:{0} '.format(orders.qsize()))
+    logger.info('Number of Orders Missing:{0} '.format(len(missing_invoices)))
+    logger.error('Missing Order invoice numbers:{0} '.format(missing_invoices))
+    logger.info('Repeated Invoices:{0} '.format(duplicate))
 
 
     for i in range(WORKERS):

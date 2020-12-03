@@ -83,6 +83,9 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     logger.debug(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
                 else:
                     logger.info(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
+                product_uom_qty = 1
+                if float(order_list[0].get('INVOICE-AMT', 0.0)) < 0.0:
+                    product_uom_qty = -1
                 misc_charge = order_list[0].get('MISC-CHARGE', 0)
                 freight_charge = order_list[0].get('FREIGHT-AMT', 0)
                 if misc_charge !='0':
@@ -91,8 +94,8 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'product_id': misc_product_id,
                     'name': 'MISC CHARGES',
                     'price_unit': order_list[0].get('MISC-CHARGE', 0),
-                    'product_uom_qty': 1,
-                    'is_delivery': True
+                    'product_uom_qty': product_uom_qty,
+                    'is_delivery': False
                     }
                     sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
                 if freight_charge !='0':

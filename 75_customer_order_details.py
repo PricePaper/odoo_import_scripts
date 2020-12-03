@@ -71,7 +71,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
                         'product_id': product_id,
                         'name': line.get('ITEM-DESC'),
                         'price_unit': line.get('PRICE-DISCOUNTED'),
-                        'product_uom_qty': line.get('QTY-ORDERED'),
+                        'product_uom_qty': line.get('QTY-SHIPPED'),
                         'qty_delivered': line.get('QTY-SHIPPED'),
                         'is_last': False,
                         'working_cost': line.get('TRUE-FIXED-COST'),
@@ -137,6 +137,8 @@ def sync_sale_order_lines():
     order_lines = {}
     for vals in csv_reader:
         inv_no = vals.get('INVOICE-NO', '')
+
+
         order_id = order_ids.get(inv_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])
