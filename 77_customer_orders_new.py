@@ -73,24 +73,11 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                 'carrier_id': carrier_ids.get(order_list[0].get('CARRIER-CODE'))
             }
 
-
             try:
                 # Check if order exists
                 res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [('name', '=', order_no)])
                 if res:
                     continue
-                    # order_id = res[0]['id']
-                    # try:
-                    #     # If order exists, remove followers to prevent Odoo from trying to duplicate
-                    #     message_partner_ids = res[0]['message_partner_ids']
-                    #     if message_partner_ids:
-                    #         sock.execute(DB, UID, PSW, 'mail.followers', 'unlink', message_partner_ids)
-                    # except Exception as e:
-                    #     print(e)
-                    #     pass
-                    # # Update the DB
-                    # sock.execute(DB, UID, PSW, 'sale.order', 'write', order_id, vals)
-                    # print(pid, 'UPDATE - SALE ORDER', order_id, res[0]['name'])
                 else:
                     res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
                     print(pid, 'CREATE - SALE ORDER', res, order_no)

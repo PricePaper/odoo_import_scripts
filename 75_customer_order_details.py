@@ -39,7 +39,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== SALE ORDER LINE ====================================
 
-def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids):
+def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_ids):
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -82,11 +82,11 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, tax_code_ids, t
 
                     tax = ''
                     if line.get('TAX-CODE') == '0':
-                        tax = tax_ids.get(float(tax_code_ids.get(order_tax_code_ids.get(line.get('INVOICE-NO')))))
-                        if not tax:
-                            logger.error('Error Tax missing: Tax:{0} Invoice:{1} Item:{2}'.format(tax_code_ids.get(order_tax_code_ids.get(line.get('INVOICE-NO'))),line.get('INVOICE-NO'),line.get('ITEM-CODE', '')))
+                        tax = order_tax_code_ids.get(line.get('INVOICE-NO'))
+                        if not tax or not tax[1]:
+                            logger.error('Error Tax missing: Invoice:{0} Item:{1}'.format(line.get('INVOICE-NO'),line.get('ITEM-CODE', '')))
                             continue
-                        vals['tax_id'] = [(6, 0, [tax])]
+                        vals['tax_id'] = [(6, 0, [tax[1]])]
 
                     res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals, {'context':{'from_import': True}})
                     if res % 100 != 0:
@@ -137,8 +137,6 @@ def sync_sale_order_lines():
     order_lines = {}
     for vals in csv_reader:
         inv_no = vals.get('INVOICE-NO', '')
-
-
         order_id = order_ids.get(inv_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])
@@ -153,25 +151,16 @@ def sync_sale_order_lines():
     products = {rec['default_code']: rec['id'] for rec in res}
     product_ids = manager.dict(products)
 
-    taxes = sock.execute(DB, UID, PSW, 'account.tax', 'search_read', [('name', '!=', 'Sale Tax' )], ['id','amount'])
-    tax1 = {float(tax['amount']): tax['id'] for tax in taxes}
+    taxes = sock.execute(DB, UID, PSW, 'account.tax', 'search_read', [], ['id','code'])
+    tax1 = {tax['code']: tax['id'] for tax in taxes}
     tax_ids = manager.dict(tax1)
 
-    fp1 = open('files/omltxau1.csv', 'r')
-    csv_reader1 = csv.DictReader(fp1)
-    tax_codes={}
-    for line in csv_reader1:
-        tax_codes[line.get('TAX-AUTH-CODE')] = line.get('TAX-AUTH-PCT')
-    tax_code_ids = manager.dict(tax_codes)
+    fiscal_position = sock.execute(DB, UID, PSW,  'account.fiscal.position', 'search_read', [], ['id','code'])
+    fiscal_positions = {pos['id']: pos['code'] for pos in fiscal_position}
 
-
-    shipto_tax={}
-    fp3 = open('files/omlshpt1.csv', 'r')
-    csv_reader3 = csv.DictReader(fp3)
-    for vals in csv_reader3:
-        ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
-        shipto_tax[ship_code] = vals.get('TAX-AUTH-CODE')
-
+    domain = ['|',('active', '=', False), ('active', '=', True)]
+    res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', domain, ['customer_code', 'property_account_position_id'])
+    partner_tax_ids = {rec['customer_code']: rec['property_account_position_id'][0] for rec in res if rec['property_account_position_id']}
 
     fp2 = open('files/omlhist1.csv', 'r')
     csv_reader2 = csv.DictReader(fp2)
@@ -179,13 +168,13 @@ def sync_sale_order_lines():
     for line in csv_reader2:
         ship_to_code = line.get('SHIP-TO-CODE', False)
         if  ship_to_code and ship_to_code != 'SAME':
-            ship_code = vals.get('CUSTOMER-CODE', False)+'-'+vals.get('SHIP-TO-CODE', False)
-            oder_tax_codes[line.get('INVOICE-NO')] = shipto_tax.get(ship_code)
+            ship_code = line.get('CUSTOMER-CODE', False) and line.get('CUSTOMER-CODE', False)+'-'+line.get('SHIP-TO-CODE', False)
+            fpos_code = partner_tax_ids.get(ship_code, False)
+            tax_id = tax_ids.get(fiscal_positions.get(fpos_code, False))
+            oder_tax_codes[line.get('INVOICE-NO')] = [ship_code, tax_id]
         else:
-            oder_tax_codes[line.get('INVOICE-NO')] = line.get('TAX-AUTH-CODE')
+            oder_tax_codes[line.get('INVOICE-NO')] = [line.get('CUSTOMER-CODE', False), tax_ids.get(line.get('TAX-AUTH-CODE', False), False)]
     order_tax_code_ids = manager.dict(oder_tax_codes)
-
-
 
     uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['id', 'name'])
     uom_ids = {uom['name']: uom['id'] for uom in uoms}
@@ -200,7 +189,7 @@ def sync_sale_order_lines():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order_line,
-                            args=(pid, data_pool, product_ids, uom_ids, tax_code_ids, tax_ids, order_tax_code_ids))
+                            args=(pid, data_pool, product_ids, uom_ids, order_tax_code_ids))
         process_Q.append(worker)
         worker.start()
 
