@@ -3,6 +3,7 @@
 
 import csv
 import multiprocessing as mp
+import ssl
 from xmlrpc import client as xmlrpclib
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
@@ -11,7 +12,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 # =================================== C U S T O M E R ========================================
 
 def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids, error_ids, delivery_notes):
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
     while data_pool:
 
         try:
@@ -92,7 +93,7 @@ def sync_customers():
             delivery_notes[customer_code] = note.capitalize()
 
     domain = ['|',('active', '=', False), ('active', '=', True)]
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
 
     res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read', domain, ['customer_code'])
     write_ids = {rec['customer_code']: rec['id'] for rec in res}

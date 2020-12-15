@@ -25,6 +25,9 @@ with open("ERROR_cl.csv", "w") as f, open("parent_missing_cl.csv", "w") as f1:
                 vals={'categ_code': line.get('PROD-CODE'),
                       'name': line.get('CLASS-DESCRIPTION').title(),
                       'parent_id': categories.get(line.get('MAJOR-CLASS')),
+                      'standard_price': line.get('LIST-PRICE-PCT'),
+                      'repacking_upcharge': line.get('UPCHARGE'),
+                      'class_margin': line.get('MIN-GTM')
                       }
                 if line.get('PROD-CODE') not in categories:
                     status = socket.execute(db, 2, pwd, 'product.category', 'create', vals)
