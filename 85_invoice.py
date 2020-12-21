@@ -44,7 +44,7 @@ def update_invoice(pid, orders):
         except:
             break
         try:
-            inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data['ref'])
+            inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data['ref'], data['invoice'][2])
             logger.info('invoice_id:{0} '.format(inv[0]))
             if inv[1]['sale_amount'] == data['invoice'][1] and (inv[1]['sale_amount'] == inv[1]['invoice_amount'] or inv[1]['sale_amount'] == -inv[1]['invoice_amount']):
                 continue
@@ -83,7 +83,7 @@ def sync_invoices():
             if order_id:
                 if order_id not in orders_dict:
 
-                    orders_dict[order_id] = [inv_no, float(vals.get('NET-AMT', '0'))]
+                    orders_dict[order_id] = [inv_no, float(vals.get('NET-AMT', '0')), vals.get('INVOICE-DATE', '')]
                 else:
                     amt = orders_dict[order_id][2] + float(vals.get('NET-AMT', '0'))
                     orders_dict[order_id] = [inv_no, amt]
@@ -111,3 +111,4 @@ def sync_invoices():
 if __name__ == "__main__":
     # Invoice
     sync_invoices()
+    # A76620
