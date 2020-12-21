@@ -11,7 +11,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 # =================================== C U S T O M E R ========================================
 
 def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids,
-                    additional_salerep, partner_emails, customer_dates, delivery_notes):
+                    additional_salerep, partner_emails, customer_dates, delivery_notes, same_rep_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
 
@@ -60,27 +60,44 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, 
                 line = customer_dates.get(customer_code, '')
                 vals['established_date'] = line['ESTBL-DATE']
                 vals['last_sold_date'] = line['LST-SLS-DATE']
-                #print(vals)
             # If we have an email address for the partner, add it to vals
             partner_email = partner_emails.get(customer_code)
             if partner_email:
                 vals['email'] = partner_email
 
             res = write_ids.get(customer_code, [])
-            if res:
-                # continue
-                sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
-                print(pid, 'UPDATE - CUSTOMER', res)
+
+            vals['commission_percentage_ids'] = []
+            if data.get('SALESMAN-CODE', '') and not sale_rep_ids.get(data.get('SALESMAN-CODE', '')):
+                print('Sales Person not found!!!!!!!!!!', data.get('SALESMAN-CODE', ''))
+                continue
+            if additional_salerep.get(customer_code, '') and not sale_rep_ids.get(additional_salerep.get(customer_code, '')):
+                print('Additional Sales Person not found!!!!!!!!!!', additional_salerep.get(customer_code, ''))
+                continue
+            if data.get('SALESMAN-CODE') == 'O2':
+                for rep in same_rep_ids:
+                    vals['commission_percentage_ids'].append((0, 0, {'sale_person_id': rep,
+                                'rule_id': rule_ids.get(rep)}))
             else:
                 vals['commission_percentage_ids'] = [
                     (0, 0, {'sale_person_id': sale_rep_ids.get(data.get('SALESMAN-CODE')),
                             'rule_id': rule_ids.get(sale_rep_ids.get(data.get('SALESMAN-CODE')))})]
-                if customer_code in additional_salerep:
-                    vals['commission_percentage_ids'].append(
-                        (0, 0, {'sale_person_id': sale_rep_ids.get(additional_salerep[customer_code]),
-                                'rule_id': rule_ids.get(sale_rep_ids.get(additional_salerep[customer_code]))}))
+            if customer_code in additional_salerep:
+                if additional_salerep[customer_code] != data.get('SALESMAN-CODE'):
+                    if additional_salerep[customer_code] == 'O2':
+                        for rep in same_rep_ids:
+                            vals['commission_percentage_ids'].append((0, 0, {'sale_person_id': rep,
+                                        'rule_id': rule_ids.get(rep)}))
+                    else:
+                        vals['commission_percentage_ids'].append(
+                            (0, 0, {'sale_person_id': sale_rep_ids.get(additional_salerep.get(customer_code)),
+                                    'rule_id': rule_ids.get(sale_rep_ids.get(additional_salerep.get(customer_code)))}))
+            if res:
+                sock.execute(DB, UID, PSW, 'res.partner', 'write', res, {'commission_percentage_ids':[(5,)]})
+                sock.execute(DB, UID, PSW, 'res.partner', 'write', res, vals)
+                print(pid, 'UPDATE - CUSTOMER', res)
+            else:
                 res = sock.execute(DB, UID, PSW, 'res.partner', 'create', vals)
-
                 print(pid, 'CREATE - CUSTOMER', res)
         except Exception as e:
             print(customer_code)
@@ -101,6 +118,7 @@ def sync_customers():
     partner_emails = manager.dict()
     customer_dates = manager.dict()
     delivery_notes = manager.dict()
+    same_rep_ids = manager.list()
 
     process_Q = []
 
@@ -126,7 +144,6 @@ def sync_customers():
         for vals in csv_reader3:
             customer_code = vals['CUSTOMER-CODE']
             customer_dates[customer_code] = vals
-    #print(customer_dates)
 
     with open('files/omlcsin1.csv', 'r') as fp5:
         csv_reader5 = csv.DictReader(fp5)
@@ -183,6 +200,11 @@ def sync_customers():
                             ['id', 'sales_person_code'])
     sale_rep_ids = {rec['sales_person_code']: rec['id'] for rec in sale_rep}
 
+    same_code_rep = sock.execute(DB, UID, PSW, 'res.partner', 'search_read',
+                                [('is_sales_person', '=', True), ('email', 'in', ('seth@pricepaper.com', 'alan@pricepaper.com')),'|', ('active', '=', False), ('active', '=', True)],
+                                ['id', 'email'])
+    same_rep_ids = [rec['id'] for rec in same_code_rep]
+
     rules = sock.execute(DB, UID, PSW, 'commission.rules', 'search_read', [], ['id', 'sales_person_id'])
     rule_ids = {rule['sales_person_id'][0]: rule['id'] for rule in rules}
 
@@ -193,7 +215,7 @@ def sync_customers():
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_customer, args=(
             pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids,
-            additional_salerep, partner_emails, customer_dates, delivery_notes))
+            additional_salerep, partner_emails, customer_dates, delivery_notes, same_rep_ids))
         process_Q.append(worker)
         worker.start()
 
