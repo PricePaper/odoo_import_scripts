@@ -52,6 +52,11 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
             shipping_id = partner_id
             order_name = order_list[0].get('ORDER-NO', '')
             ship_to_code = order_list[0].get('SHIP-TO-CODE', False)
+
+            # zzzz ship_to_code is garbage, remove it
+            if ship_to_code == "zzzz":
+                ship_to_code = False
+                
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
             if  ship_to_code and ship_to_code != 'SAME':
                 shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
