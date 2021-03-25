@@ -58,12 +58,14 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                 if product_id in order_line_ids and code == order_line_ids[product_id]:
                     continue
 
+                qty = float(line.get('ITEM-QTY-IN-STOCK-UM')) * float(line.get('QTY-ORDERED')) / float(line.get('QTY-IN-ORDERING-UM'))
+
                 vals = {
                         'order_id': order_id,
                         'product_id': product_id,
                         'name': line.get('ITEM-DESC'),
                         'price_unit': line.get('PRICE-DISCOUNTED'),
-                        'product_uom_qty': line.get('QTY-ORDERED'),
+                        'product_uom_qty': qty,
                         'is_last': False,
                         'working_cost':line.get('TRUE-FIXED-COST'),
                         'lst_price':line.get('PRICE-DISCOUNTED'),
