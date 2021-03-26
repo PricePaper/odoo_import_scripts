@@ -12,7 +12,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 # =================================== C U S T O M E R ========================================
 
 def update_customer(pid, data_pool, write_ids, fiscal_ids, categ_ids, term_ids, carrier_ids, sale_rep_ids, rule_ids,
-                    additional_salerep, partner_emails, customer_dates, delivery_notes):
+                    additional_salerep, partner_emails, customer_dates, delivery_notes, same_rep_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
     while data_pool:
 
