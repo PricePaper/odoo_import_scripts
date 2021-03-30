@@ -4,14 +4,16 @@
 # -*- coding: utf-8 -*-
 
 import csv
-import xmlrpc.client as xmlrpclib
+import logging.handlers
+import math
 import multiprocessing as mp
+import os
+import xmlrpc.client as xmlrpclib
+
+import multiprocessing_logging
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
-import logging.handlers
-import os
-import multiprocessing_logging
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
@@ -53,25 +55,31 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                     logger.error('Product Missing - {0} {1}'.format(line.get('ITEM-CODE', ''), order_no, code1))
                     continue
                 if not code:
-                    logger.error('UOM Missing - {0} {1} {2}'.format(order_no,  line.get('ITEM-CODE', '')))
+                    logger.error('UOM Missing - {0} {1}'.format(order_no, line.get('ITEM-CODE', '')))
                     continue
                 if product_id in order_line_ids and code == order_line_ids[product_id]:
                     continue
 
-                qty = float(line.get('ITEM-QTY-IN-STOCK-UM')) * float(line.get('QTY-ORDERED')) / float(line.get('QTY-IN-ORDERING-UM'))
+                uom_factor = float(line.get('ITEM-QTY-IN-STOCK-UM')) / float(line.get('QTY-IN-ORDERING-UM'))
+                quantity_ordered = float(line.get('QTY-ORDERED')) * uom_factor
+
+                if uom_factor > 1 or math.isclose(1.0, uom_factor):
+                    quantity_ordered = round(quantity_ordered, 0)
+                else:
+                    quantity_ordered = round(quantity_ordered, 3)
 
                 vals = {
-                        'order_id': order_id,
-                        'product_id': product_id,
-                        'name': line.get('ITEM-DESC'),
-                        'price_unit': line.get('PRICE-DISCOUNTED'),
-                        'product_uom_qty': qty,
-                        'is_last': False,
-                        'working_cost':line.get('TRUE-FIXED-COST'),
-                        'lst_price':line.get('PRICE-DISCOUNTED'),
-                        'product_uom': code,
-                        'tax_id': False
-                        }
+                    'order_id': order_id,
+                    'product_id': product_id,
+                    'name': line.get('ITEM-DESC'),
+                    'price_unit': line.get('PRICE-DISCOUNTED'),
+                    'product_uom_qty': quantity_ordered,
+                    'is_last': False,
+                    'working_cost': line.get('BURDEN-COST'),
+                    'lst_price': line.get('PRICE-DISCOUNTED'),
+                    'product_uom': code,
+                    'tax_id': False
+                }
 
                 tax = ''
                 if line.get('TAX-CODE') == '0':

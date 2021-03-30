@@ -54,6 +54,11 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
             while len(lines) > 0:
                 try:
                     line = lines.pop()
+
+                    # Skip line 0 as they contain no useful data and just throw exceptions
+                    if line.get('FILE-LINE') == "0":
+                        continue
+
                     product_name = line.get('ITEM-CODE', '')
                     product_id = product_ids.get(product_name)[0]
                     uom_id = product_ids.get(product_name)[1]
