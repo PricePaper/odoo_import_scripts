@@ -69,5 +69,4 @@ def load_csv(infile: TextIO) -> List:
 if __name__ == '__main__':
     with open('data/vendors-new.csv', 'r', newline='') as f:
         data = load_csv(f)
-
-    update_vendors(data)
+        update_vendors(data)
