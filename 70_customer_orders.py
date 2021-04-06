@@ -62,8 +62,8 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                 shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
                 shipping_id = partner_ids.get(shipping_code)
                 if not shipping_id:
-                    logger.error('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
-                    continue
+                    logger.warning('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
+                    shipping_id = partner_id 
             term_id = term_ids.get(order_list[0].get('TERM-CODE', ''))
             if not partner_id:
                 logger.error('Partner Missing - Order NO:{0} Partner Code:{1}'.format(order_name, partner_code))
