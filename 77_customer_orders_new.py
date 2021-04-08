@@ -119,9 +119,13 @@ def sync_sale_orders():
     with open('files/omlordr1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
+            invoice =  vals['INVOICE-NO']
+            if invoice and invoice[:2] in ['AC']:
+                continue
             order_no = vals['ORDER-NO']
             orders.setdefault(order_no, [])
             orders[order_no].append(vals)
+
 
     for ref in orders:
         data_pool.put({'ref': ref, 'orders': orders[ref]})

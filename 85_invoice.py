@@ -73,6 +73,8 @@ def sync_invoices():
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
             inv_no = vals.get('INVOICE-NO', '')
+            if inv_no[:2] in ['AC', 'AO', 'AD', 'AK']:
+                continue
             if inv_no not in invoices:
                 invoices.append(inv_no)
             elif inv_no in duplicate:

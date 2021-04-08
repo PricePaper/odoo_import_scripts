@@ -56,14 +56,14 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
             # zzzz ship_to_code is garbage, remove it
             if ship_to_code == "zzzz":
                 ship_to_code = False
-                
+
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
             if  ship_to_code and ship_to_code != 'SAME':
                 shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
                 shipping_id = partner_ids.get(shipping_code)
                 if not shipping_id:
-                    logger.warning('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
-                    shipping_id = partner_id 
+                    logger.error('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
+                    continue
             term_id = term_ids.get(order_list[0].get('TERM-CODE', ''))
             if not partner_id:
                 logger.error('Partner Missing - Order NO:{0} Partner Code:{1}'.format(order_name, partner_code))
@@ -100,6 +100,8 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'name': 'MISC CHARGES',
                     'price_unit': order_list[0].get('MISC-CHARGE', 0),
                     'product_uom_qty': product_uom_qty,
+                    'qty_delivered': product_uom_qty,
+                    'qty_delivered_method': 'manual',
                     'is_delivery': False
                     }
                     sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
@@ -109,7 +111,9 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'product_id': delivery_product_id,
                     'name': 'Frieght CHARGES',
                     'price_unit': order_list[0].get('FREIGHT-AMT', 0),
-                    'product_uom_qty': 1,
+                    'product_uom_qty': product_uom_qty,
+                    'qty_delivered': product_uom_qty,
+                    'qty_delivered_method': 'manual',
                     'is_delivery': True
                     }
                     sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
@@ -144,6 +148,9 @@ def sync_sale_orders():
             if vals['ORDER-NO'] in existing_orders:
                 continue
             else:
+                invoice =  vals['INVOICE-NO']
+                if invoice and invoice[:2] in ['AC']:
+                    continue
                 order_no = vals['ORDER-NO']
                 orders.setdefault(order_no, [])
                 orders[order_no].append(vals)

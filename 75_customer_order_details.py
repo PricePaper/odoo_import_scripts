@@ -152,6 +152,8 @@ def sync_sale_order_lines():
     order_lines = {}
     for vals in csv_reader:
         inv_no = vals.get('INVOICE-NO', '')
+        if inv_no and inv_no[:2] in ['AC']:
+            continue
         order_id = order_ids.get(inv_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])
