@@ -85,6 +85,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                         'name': line.get('ITEM-DESC'),
                         'price_unit': line.get('PRICE-DISCOUNTED'),
                         'product_uom_qty': quantity_ordered,
+                        'qty_delivered_method': 'manual',
                         'qty_delivered': quantity_shipped,
                         'is_last': False,
                         'working_cost': line.get('TRUE-FIXED-COST'),
