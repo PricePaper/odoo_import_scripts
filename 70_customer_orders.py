@@ -3,11 +3,10 @@
 
 import csv
 import logging.handlers
-import os
-import time
 import multiprocessing as mp
-import xmlrpc.client as xmlrpclib
+import os
 import queue
+import xmlrpc.client as xmlrpclib
 
 import multiprocessing_logging
 
@@ -58,12 +57,14 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                 ship_to_code = False
 
             user_id = user_ids.get(sale_rep_ids.get(order_list[0].get('SALESMAN-CODE')))
-            if  ship_to_code and ship_to_code != 'SAME':
-                shipping_code = order_list[0].get('CUSTOMER-CODE', False)+'-'+order_list[0].get('SHIP-TO-CODE', False)
+            if ship_to_code and ship_to_code != 'SAME':
+                shipping_code = order_list[0].get('CUSTOMER-CODE', False) + '-' + order_list[0].get('SHIP-TO-CODE',
+                                                                                                    False)
                 shipping_id = partner_ids.get(shipping_code)
                 if not shipping_id:
-                    logger.error('Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
-                    continue
+                    logger.warning(
+                        'Shipping id Missing - Order NO:{0} Shipping_code Code:{1}'.format(order_name, shipping_code))
+                    shipping_id = partner_id
             term_id = term_ids.get(order_list[0].get('TERM-CODE', ''))
             if not partner_id:
                 logger.error('Partner Missing - Order NO:{0} Partner Code:{1}'.format(order_name, partner_code))
@@ -73,7 +74,7 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
             vals = {
                 'name': order_list[0].get('ORDER-NO', ''),
                 'partner_id': partner_id,
-                'partner_shipping_id':shipping_id,
+                'partner_shipping_id': shipping_id,
                 'note': inv_no,
                 'payment_term_id': term_id,
                 'date_order': order_list[0].get('ORDER-DATE', ''),
