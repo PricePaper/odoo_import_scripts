@@ -86,7 +86,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                         'price_unit': line.get('PRICE-DISCOUNTED'),
                         'product_uom_qty': quantity_ordered,
                         'qty_delivered_method': 'manual',
-                        'qty_delivered': quantity_shipped,
+                        'qty_delivered_manual': quantity_shipped,
                         'is_last': False,
                         'working_cost': line.get('TRUE-FIXED-COST'),
                         'lst_price': line.get('PRICE-DISCOUNTED'),
@@ -103,8 +103,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                             continue
                         vals['tax_id'] = [(6, 0, [tax[1]])]
 
-                    res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals,
-                                       {'context': {'from_import': True}})
+                    res = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_order_line_xmlrpc', order_id, vals)
                     if res % 1000 != 0:
                         logger.debug('Create - SALE ORDER LINE {0} {1}'.format(order_id, res))
                     else:

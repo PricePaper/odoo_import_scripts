@@ -100,11 +100,11 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'name': 'MISC CHARGES',
                     'price_unit': order_list[0].get('MISC-CHARGE', 0),
                     'product_uom_qty': product_uom_qty,
-                    'qty_delivered': product_uom_qty,
+                    'qty_delivered_manual': product_uom_qty,
                     'qty_delivered_method': 'manual',
                     'is_delivery': False
                     }
-                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
+                    sock.execute(DB, UID, PSW, 'sale.order', 'action_create_order_line_xmlrpc', res, misc_vals)
                 if freight_charge !='0':
                     frieght_vals = {
                     'order_id': res,
@@ -112,11 +112,11 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     'name': 'Frieght CHARGES',
                     'price_unit': order_list[0].get('FREIGHT-AMT', 0),
                     'product_uom_qty': product_uom_qty,
-                    'qty_delivered': product_uom_qty,
+                    'qty_delivered_manual': product_uom_qty,
                     'qty_delivered_method': 'manual',
                     'is_delivery': True
                     }
-                    sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
+                    sock.execute(DB, UID, PSW, 'sale.order', 'action_create_order_line_xmlrpc', res, frieght_vals)
 
             except Exception as e:
                 logger.error('Exception --- Order No:{0} error:{1}'.format(order_name, e))
