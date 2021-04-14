@@ -69,13 +69,11 @@ def update_product(pid, data_pool, odoo_products):
 def sync_products():
     manager = mp.Manager()
     data_pool = manager.list()
-    odoo_products = manager.dict()
-    quantities = manager.dict()
 
     process_Q = []
 
-    fp = open('files/iclitem1.csv', 'r')
-    csv_reader = csv.DictReader(fp)
+    with open('files/iclitem1.csv', 'r') as fp:
+        csv_reader = csv.DictReader(fp)
 
     sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
 
@@ -92,13 +90,8 @@ def sync_products():
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ('default_code', 'qty_available'))
     odoo_products = {rec['default_code']: {'id': rec['id'], 'qty_available': rec['qty_available']} for rec in res}
 
-    # Get qty on hand from Odoo
-    # res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['qty_available'])
-    # quantities = {rec['default_code']: rec['qty_available'] for rec in res}
-
     # Free up resources
     del res, default_codes, csv_reader
-    fp.close()
 
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)

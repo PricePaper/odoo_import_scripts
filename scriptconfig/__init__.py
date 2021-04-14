@@ -8,6 +8,7 @@ DB = config['db']
 UID = config['uid']
 PSW = config['password']
 WORKERS: int = int(config['workers'])
+DB_DSN = config['db_dsn']
 
 url = URL
 db = DB
