@@ -85,7 +85,7 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
 
             try:
                 res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
-                if res % 100 != 0:
+                if res % 1000 != 0:
                     logger.debug(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
                 else:
                     logger.info(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
