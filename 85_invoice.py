@@ -8,6 +8,7 @@ import time
 import multiprocessing as mp
 import xmlrpc.client as xmlrpclib
 import queue
+import math
 
 import multiprocessing_logging
 
@@ -48,10 +49,14 @@ def update_invoice(pid, orders):
             logger.info('invoice_id:{0} '.format(inv[0]))
             if inv[1]['sale_amount'] == data['invoice'][1] and (inv[1]['sale_amount'] == inv[1]['invoice_amount'] or inv[1]['sale_amount'] == -inv[1]['invoice_amount']):
                 continue
+            if math.isclose(inv[1]['invoice_amount'], data['invoice'][1], abs_tol=0.1):
+                logger.debug('Small amount diff. INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
+                continue
             logger.error('Amount Mismatch in CSV and invoice --- INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
 
         except Exception as e:
             logger.error('Exception --- order id {0} error:{1}'.format(data,e))
+            
 
 
 

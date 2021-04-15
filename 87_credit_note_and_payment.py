@@ -262,7 +262,7 @@ def sync_invoices():
                             'comment': order_val.get('ORDER-NO'),
                             'origin': order_no.get(order_val.get('ORDER-NO')),
                             'payment_term_id': term_id,
-                            'move_name': inv_no+'-4',
+                            'move_name': inv_no,
                             'date_invoice': inv_date,
                             'invoice_line_ids': invoice_line_ids,
 

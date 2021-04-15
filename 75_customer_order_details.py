@@ -95,7 +95,7 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
                     }
 
                     tax = ''
-                    if line.get('TAX-CODE') == '0':
+                    if line.get('TAX-CODE') == '0' or line.get('TAX-AMT') != '0':
                         tax = order_tax_code_ids.get(line.get('INVOICE-NO'))
                         if not tax or not tax[1]:
                             logger.error('Error Tax missing: Invoice:{0} Item:{1}'.format(line.get('INVOICE-NO'),
