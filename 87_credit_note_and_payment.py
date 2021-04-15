@@ -284,7 +284,7 @@ def sync_invoices():
             except Exception as e:
 
                 logger.error('Exception --- Invoice {0} error:{1}'.format(inv_no, e))
-                break
+                # break
 
 
 if __name__ == "__main__":

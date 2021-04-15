@@ -72,21 +72,20 @@ def sync_products():
 
     process_Q = []
 
+    default_codes = []
     with open('files/iclitem1.csv', 'r') as fp:
         csv_reader = csv.DictReader(fp)
 
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
-
-    default_codes = []
-    for vals in csv_reader:
-        if vals.get('ITEM-STATUS') and vals.get('ITEM-STATUS') == 'D':
-            data_pool.append(vals)
-            default_code = vals['ITEM-CODE']
-            default_codes.append(default_code)
+        for vals in csv_reader:
+            if vals.get('ITEM-STATUS') and vals.get('ITEM-STATUS') == 'D':
+                data_pool.append(vals)
+                default_code = vals['ITEM-CODE']
+                default_codes.append(default_code)
 
     domain = [('default_code', 'in', default_codes), '|', ('active', '=', False), ('active', '=', True)]
 
     # Get product ids from Odoo
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ('default_code', 'qty_available'))
     odoo_products = {rec['default_code']: {'id': rec['id'], 'qty_available': rec['qty_available']} for rec in res}
 
