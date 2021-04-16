@@ -25,13 +25,19 @@ fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
+# create file handler which logs warn/errors to file
+errorlogfile = os.path.splitext(filename)[0] + '-error.log'
+eh = logging.FileHandler(errorlogfile, mode='w')
+eh.setLevel(logging.WARNING)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 fh.setFormatter(formatter)
+eh.setFormatter(formatter)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
+logger.addHandler(eh)
 multiprocessing_logging.install_mp_handler(logger=logger)
 
 
@@ -46,13 +52,13 @@ def update_invoice(pid, orders):
             break
         try:
             inv = sock.execute(DB, UID, PSW, 'sale.order', 'action_create_open_invoice_xmlrpc', data['ref'], data['invoice'][2])
-            logger.info('invoice_id:{0} '.format(inv[0]))
+            logger.debug('invoice_id:{0} '.format(inv[0]))
             if inv[1]['sale_amount'] == data['invoice'][1] and (inv[1]['sale_amount'] == inv[1]['invoice_amount'] or inv[1]['sale_amount'] == -inv[1]['invoice_amount']):
                 continue
             if math.isclose(inv[1]['invoice_amount'], data['invoice'][1], abs_tol=0.1):
                 logger.debug('Small amount diff. INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
                 continue
-            logger.error('Amount Mismatch in CSV and invoice --- INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
+            logger.warning('Amount Mismatch in CSV and invoice --- INVOICE : {0}, ORDER id:{1}, {2}, CSV amt:{3}'.format(data['invoice'][0],data['ref'], inv[1], data['invoice'][1]))
 
         except Exception as e:
             logger.error('Exception --- order id {0} error:{1}'.format(data,e))
@@ -100,8 +106,9 @@ def sync_invoices():
     for ref in orders_dict:
         orders.put({'ref': ref, 'invoice': orders_dict[ref]})
     logger.info('Number of orders to process:{0} '.format(orders.qsize()))
-    logger.info('Number of Orders Missing:{0} '.format(len(missing_invoices)))
-    logger.error('Missing Order invoice numbers:{0} '.format(missing_invoices))
+    if missing_invoices:
+        logger.warning('Number of Orders Missing:{0} '.format(len(missing_invoices)))
+        logger.warning('Missing Order invoice numbers:{0} '.format(missing_invoices))
     logger.info('Repeated Invoices:{0} '.format(duplicate))
 
 

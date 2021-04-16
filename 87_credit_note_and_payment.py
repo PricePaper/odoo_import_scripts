@@ -26,13 +26,19 @@ fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
+# create file handler which logs warnings and errors
+errorlogfile = os.path.splitext(filename)[0] + '-error.log'
+eh = logging.FileHandler(errorlogfile, mode='w')
+eh.setLevel(logging.WARNING)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 fh.setFormatter(formatter)
+eh.setFormatter(formatter)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
+logger.addHandler(eh)
 multiprocessing_logging.install_mp_handler(logger=logger)
 
 
@@ -163,7 +169,7 @@ def sync_invoices():
                     }
                     res = sock.execute(DB, UID, PSW, 'account.payment', 'create', vals)
                     post = sock.execute(DB, UID, PSW, 'account.payment', 'post', res)
-                    logger.info('Create - Customer Payment {0} {1}'.format(inv_no, res))
+                    logger.debug('Create - Customer Payment {0} {1}'.format(inv_no, res))
 
 
 
@@ -268,7 +274,7 @@ def sync_invoices():
 
                     }
                     res = sock.execute(DB, UID, PSW, 'account.invoice', 'create', inv_vals)
-                    logger.info('Create - Credit Note {0} {1}'.format(inv_no, res))
+                    logger.debug(f'Create - Credit Note {partner_code} {inv_no} {res}')
 
 
                     amount = sock.execute(DB, UID, PSW, 'account.invoice', 'search_read', [('id', '=', res)], ['amount_total','amount_untaxed', 'amount_tax'])
@@ -276,14 +282,14 @@ def sync_invoices():
                     inv_amt = amount[0]['amount_total']
 
                     if -csv_amt != amount[0]['amount_total']:
-                        logger.error('Amount mismatch in credit note --- Invoice amount:{0} CSV amount:{1} Invoice:{2}'.format(inv_amt, -csv_amt, inv_no))
+                        logger.error(f'Amount mismatch in credit note --- Customer: {partner_code} Invoice amount:{inv_amt} CSV amount:{-csv_amt} Invoice:{inv_no}')
                         continue
                     open_inv = sock.execute(DB, UID, PSW, 'account.invoice', 'action_invoice_open', res)
 
 
             except Exception as e:
 
-                logger.error('Exception --- Invoice {0} error:{1}'.format(inv_no, e))
+                logger.error(f'Exception --- Customer: {partner_code} Invoice: {inv_no} error:{e}')
                 # break
 
 
