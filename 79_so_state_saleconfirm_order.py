@@ -65,7 +65,10 @@ def confirm_sale_orders():
     with open('files/omlcinv1.csv', newline='') as f:
          csv_reader = csv.DictReader(f)
          for vals in csv_reader:
-             order_no = vals['ORDER-NO']
+             name = vals.get('1ST-NAME', '')
+             if name == 'VOID':
+                 continue
+             order_no = vals['ORDER-NO']             
              order_id = order_ids.get(order_no)
              if order_id and order_id not in data_pool:
                  data_pool.append(order_id)
