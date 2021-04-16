@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
-
 import csv
 import logging.handlers
 import math
@@ -35,7 +33,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== SALE ORDER LINE ====================================
 
-def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_ids):
+def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_ids, no_tax_id):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -83,10 +81,14 @@ def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_
 
                 tax = ''
                 if line.get('TAX-CODE') == '0':
-                    tax = order_tax_code_ids.get(line.get('ORDER-NO', ''))
-                    if not tax or not tax[1]:
-                        logger.error('Error Tax missing: Invoice:{0} Item:{1}'.format(line.get('ORDER-NO', ''),line.get('ITEM-CODE', '')))
-                        continue
+                    if line.get('TAX-AMT') != '0':
+                        tax = order_tax_code_ids.get(line.get('ORDER-NO', ''))
+                        if not tax or not tax[1]:
+                            logger.error('Error Tax missing: Invoice:{0} Item:{1}'.format(line.get('ORDER-NO', ''),line.get('ITEM-CODE', '')))
+                            continue
+                    else:
+                        tax=[False, no_tax_id]
+
                     vals['tax_id'] = [(6, 0, [tax[1]])]
 
                 res = sock.execute(DB, UID, PSW, 'sale.order.line', 'create', vals, {'context':{'from_import': True}})
@@ -163,6 +165,9 @@ def sync_sale_order_lines():
     tax1 = {tax['code']: tax['id'] for tax in taxes}
     tax_ids = manager.dict(tax1)
 
+    no_tax_id = tax_ids.get('*1')
+    print(no_tax_id)
+
     fiscal_position = sock.execute(DB, UID, PSW,  'account.fiscal.position', 'search_read', [], ['id','code'])
     fiscal_positions = {pos['id']: pos['code'] for pos in fiscal_position}
 
@@ -210,7 +215,7 @@ def sync_sale_order_lines():
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_sale_order_line,
-            args=(pid, data_pool, product_ids, uom_ids, order_tax_code_ids))
+            args=(pid, data_pool, product_ids, uom_ids, order_tax_code_ids, no_tax_id))
         process_Q.append(worker)
         worker.start()
 

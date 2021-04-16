@@ -68,13 +68,13 @@ def create_do_invoice(pid, data_pool, product_ids, inv_vals):
             freight_amt = float(invoice_vals.get('freight_amt'))
             misc_amt = float(invoice_vals.get('misc_amt'))
             total = round(inv_amt+tax_amt+freight_amt+misc_amt, 2)
-            
+
             order = sock.execute(DB, UID, PSW, 'sale.order', 'import_draft_invoice', order_id, do_line_dict, {'context':{'from_import': True}})
             logger.info('Created Invoice')
             if order['invoice_amount'] != total:
                 logger.error('Amount Mismatch in CSV and invoice --- INVOICE : {0},CSV amt:{1}, invoice Amount: {2}'.format(invoice_vals.get('name'), total, order['invoice_amount']))
         except Exception as e:
-            logger.error('Exception {}'.format(e))
+            logger.error('Invoice :{0} Exception {1}'.format(invoice_vals.get('name'), e))
             # data_pool.append(data)
 
 
