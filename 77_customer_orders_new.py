@@ -80,7 +80,7 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                     continue
                 else:
                     res = sock.execute(DB, UID, PSW, 'sale.order', 'create', vals)
-                    print(pid, 'CREATE - SALE ORDER', res, order_no)
+                    logger.info(f"{pid} CREATE - SALE ORDER' {res} {order_no}")
                     misc_charge = order_list[0].get('MISC-CHARGE', 0)
                     freight_charge = order_list[0].get('FREIGHT-AMT', 0)
                     if misc_charge !='0':
@@ -90,7 +90,9 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                         'name': 'MISC CHARGES',
                         'price_unit': order_list[0].get('MISC-CHARGE', 0),
                         'product_uom_qty': 1,
-                        'is_delivery': True
+                        'qty_delivered_manual': 1,
+                        'qty_delivered_method': 'manual',
+                        'is_delivery': False
                         }
                         sock.execute(DB, UID, PSW, 'sale.order.line', 'create', misc_vals)
                     if freight_charge !='0':
@@ -100,6 +102,8 @@ def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_
                         'name': 'Frieght CHARGES',
                         'price_unit': order_list[0].get('FREIGHT-AMT', 0),
                         'product_uom_qty': 1,
+                        'qty_delivered_manual': 1,
+                        'qty_delivered_method': 'manual',
                         'is_delivery': True
                         }
                         sock.execute(DB, UID, PSW, 'sale.order.line', 'create', frieght_vals)
@@ -116,15 +120,31 @@ def sync_sale_orders():
     data_pool = manager.JoinableQueue()
 
     orders = {}
-    with open('files/omlordr1.csv', newline='') as f:
+
+
+    with open('files/omlcinv1.csv', newline='') as f:
         csv_reader = csv.DictReader(f)
         for vals in csv_reader:
+            name = vals.get('1ST-NAME', '')
+            if name == 'VOID':
+                continue
             invoice =  vals['INVOICE-NO']
             if invoice and invoice[:2] in ['AC']:
                 continue
             order_no = vals['ORDER-NO']
             orders.setdefault(order_no, [])
             orders[order_no].append(vals)
+
+    with open('files/omlordr1.csv', newline='') as f1:
+        csv_reader1 = csv.DictReader(f1)
+        for vals in csv_reader1:
+            invoice =  vals['INVOICE-NO']
+            if invoice and invoice[:2] in ['AC']:
+                continue
+            order_no = vals['ORDER-NO']
+            if order_no not in orders:
+                orders.setdefault(order_no, [])
+                orders[order_no].append(vals)
 
 
     for ref in orders:
@@ -156,6 +176,7 @@ def sync_sale_orders():
         misc_product_id = sock.execute(DB, UID, PSW, 'product.product', 'create', pro_vals)
     else:
         misc_product_id = misc_product_id[0]['id']
+
     delivery_product_id = sock.execute(DB, UID, PSW, 'product.product', 'search_read', [('default_code', '=', 'delivery_008' )], ['id'])
     if not delivery_product_id:
         del_pro_vals = {'name':'Delivery Charge', 'default_code':'delivery_008','type': 'service'}

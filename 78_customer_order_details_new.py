@@ -106,18 +106,48 @@ def sync_sale_order_lines():
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])
     order_ids = {rec['name'] : rec['id']  for rec in res}
 
+
+    fp2 = open('files/omlcinv1.csv', 'r')
+    csv_reader2 = csv.DictReader(fp2)
+
+    order_dict = {}
+
+    for vals in csv_reader2:
+        ord_no = vals.get('ORDER-NO', '')
+        inv_no = vals.get('INVOICE-NO', '')
+        order_dict[inv_no] = ord_no
+
+    fp1 = open('files/omlcinv2.csv', 'r')
+    csv_reader1 = csv.DictReader(fp1)
+
+    order_lines = {}
+    order_inv = []
+
+    for vals in csv_reader1:
+        inv_no = vals.get('INVOICE-NO', '')
+        ord_no = order_dict.get(inv_no)
+        order_inv.append(ord_no)
+        order_id = order_ids.get(ord_no)
+        if order_id:
+            vals['ORDER-NO'] = ord_no
+            lines = order_lines.setdefault(order_id, [])
+            lines.append(vals)
+
+    fp1.close()
+
     fp = open('files/omlordr2.csv', 'r')
     csv_reader = csv.DictReader(fp)
 
-    order_lines = {}
     for vals in csv_reader:
         ord_no = vals.get('ORDER-NO', '')
         order_id = order_ids.get(ord_no)
-        if order_id:
+        if order_id and ord_no not in order_inv:
             lines = order_lines.setdefault(order_id, [])
             lines.append(vals)
 
     fp.close()
+
+
 
     data_pool = manager.list([{'order_id': order, 'lines': order_lines[order]} for order in order_lines])
 
@@ -152,7 +182,23 @@ def sync_sale_order_lines():
             oder_tax_codes[line.get('ORDER-NO', '')] = [ship_code, tax_id]
         else:
             oder_tax_codes[line.get('ORDER-NO', '')] = [line.get('CUSTOMER-CODE', False), tax_ids.get(line.get('TAX-AUTH-CODE', False), False)]
+
+    fp3 = open('files/omlcinv1.csv', 'r')
+    csv_reader3 = csv.DictReader(fp3)
+    for line in csv_reader3:
+        inv_no = line.get('INVOICE-NO', '')
+        ord_no = order_dict.get(inv_no)
+        ship_to_code = line.get('SHIP-TO-CODE', False)
+        if  ship_to_code and ship_to_code != 'SAME':
+            ship_code = line.get('CUSTOMER-CODE', False) and line.get('CUSTOMER-CODE', False)+'-'+line.get('SHIP-TO-CODE', False)
+            fpos_code = partner_tax_ids.get(ship_code, False)
+            tax_id = tax_ids.get(fiscal_positions.get(fpos_code, False))
+            oder_tax_codes[ord_no] = [ship_code, tax_id]
+        else:
+            oder_tax_codes[ord_no] = [line.get('CUSTOMER-CODE', False), tax_ids.get(line.get('TAX-AUTH-CODE', False), False)]
+
     order_tax_code_ids = manager.dict(oder_tax_codes)
+
 
     res = None
     order_ids = None
