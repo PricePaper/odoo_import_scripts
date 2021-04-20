@@ -38,7 +38,7 @@ def order_confirmation(pid, data_pool):
     while data_pool:
         try:
             data = data_pool.pop()
-            order = sock.execute(DB, UID, PSW, 'sale.order', 'import_action_confirm', data)
+            order = sock.execute(DB, UID, PSW, 'sale.order', 'import_action_confirm', data, {'context':{'from_import': True}})
             print(order)
         except Exception as e:
             logger.error('Error {0} {1}'.format(data, e))
@@ -68,11 +68,11 @@ def confirm_sale_orders():
              name = vals.get('1ST-NAME', '')
              if name == 'VOID':
                  continue
-             order_no = vals['ORDER-NO']             
+             order_no = vals['ORDER-NO']
              order_id = order_ids.get(order_no)
              if order_id and order_id not in data_pool:
                  data_pool.append(order_id)
-    # data_pool.append(98828)
+    # data_pool.append(98927)
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=order_confirmation, args=(pid, data_pool))
