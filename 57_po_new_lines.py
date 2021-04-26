@@ -7,7 +7,6 @@ import multiprocessing as mp
 import os
 import random
 import time
-import xmlrpc.client
 from xmlrpc import client as xmlrpclib
 
 # Get this using pip
@@ -42,12 +41,12 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
     sock = xmlrpclib.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
-            order_line_ids = ''
+            order_line_ids = {}
             data = data_pool.pop()
             order_id = data.get('order_id')
             order_lines = sock.execute(DB, UID, PSW, 'purchase.order.line', 'search_read',
                                        [('order_id', '=', order_id)], ['product_id'])
-            order_line_ids = [rec['product_id'][0] for rec in order_lines]
+            order_line_ids = {rec['product_id'][0]: rec['id'] for rec in order_lines}
 
             lines = data.get('lines', [])
             line = ''
@@ -70,9 +69,7 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                     if not uom_id:
                         logger.error('Uom Missing Error: {0}\n{1}'.format(product_name, line.get('ORDR-NUM', '')))
                         continue
-                    if product_id in order_line_ids:
-                        logger.debug('Duplicate - {}'.format(line))
-                        continue
+
                     vals = {'product_id': product_id,
                             'product_uom': uom_id,
                             'price_unit': line.get('ORDR-UNIT-COST'),
@@ -82,25 +79,31 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                             'order_id': order_id,
                             'date_planned': line.get('ORDR-LINE-REQD-DATE', '')
                             }
+                    if product_id in order_line_ids:
+                        id = order_line_ids.get(product_id)
+                        res = sock.execute(DB, UID, PSW, 'purchase.order.line', 'write', id, vals)
+                        logger.info('Updated PO LINE - {} Product {}'.format(order_id, product_name))
+                        continue
+
                     res = sock.execute(DB, UID, PSW, 'purchase.order.line', 'create', vals)
                     if res % 100 != 0:
                         logger.debug('Worker {0} Create - PURCHASE ORDER LINE {1} {2}'.format(pid, order_id, res))
                     else:
                         logger.info('Worker {0} Create - PURCHASE ORDER LINE {1} {2}'.format(pid, order_id, res))
-                except xmlrpc.client.ProtocolError:
+                except xmlrpclib.ProtocolError:
                     logger.warning("ProtocolError: adding {} back to the work queue".format(order_id))
                     lines.append(line)
                     time.sleep(random.randint(1, 3))
                     continue
-        except xmlrpc.client.Fault as fault:
-            if fault.faultString.count('serialize'):
-                logger.warning('TransactionRollbackError - adding back to queue: ' + str(fault))
-                lines.append(line)
-            elif fault.faultString.count('Missing required fields on accountable sale order line'):
-                logger.error('Validation Error: {0}\n{1}'.format(fault, line))
-            else:
-                logger.error(f'Unknown XMLRPC Fault: {fault}\nOffending line: {line}')
-            continue
+        # except xmlrpclib.Fault as fault:
+        #     if fault.faultString.count('serialize'):
+        #         logger.warning('TransactionRollbackError - adding back to queue: ' + str(fault))
+        #         lines.append(line)
+        #     elif fault.faultString.count('Missing required fields on accountable sale order line'):
+        #         logger.error('Validation Error: {0}\n{1}'.format(fault, line))
+        #     else:
+        #         logger.error(f'Unknown XMLRPC Fault: {fault}\nOffending line: {line}')
+        #     continue
         except Exception as e:
             logger.critical(f'Unexpected exception: {e}\nOffending line: {line}')
             continue
@@ -128,6 +131,7 @@ def sync_purchase_order_lines():
     order_lines = {}
     for vals in csv_reader:
         order_no = vals.get('ORDR-NUM', '')
+
         order_id = order_ids.get(order_no)
         if order_id:
             lines = order_lines.setdefault(order_id, [])

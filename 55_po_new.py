@@ -2,10 +2,36 @@
 # -*- coding: utf-8 -*-
 
 import csv
-from xmlrpc import client as xmlrpclib
+import logging.handlers
 import multiprocessing as mp
+import os
+import queue
+import xmlrpc.client as xmlrpclib
+
+import multiprocessing_logging
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+filename = os.path.basename(__file__)
+logfile = os.path.splitext(filename)[0] + '.log'
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+# add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
+multiprocessing_logging.install_mp_handler(logger=logger)
+
 
 # ==================================== Purchase ORDER ====================================
 
@@ -19,7 +45,7 @@ def update_purchase_order(pid, data_pool, error_ids, write_ids, partner_ids, ter
             partner_id = partner_ids.get(data.get('VEND-CODE', ''))
             term_id = term_ids.get(data.get('TERM-CODE', ''))
             if not partner_id or not term_id:
-                error_ids.append(order_no)
+                logger.warning('partner or Term missing - Order NO:{0}'.format(order_no))
                 continue
 
             vals={'name': order_no,
@@ -31,16 +57,15 @@ def update_purchase_order(pid, data_pool, error_ids, write_ids, partner_ids, ter
 
             res = write_ids.get(order_no, [])
             if res:
-
-                sock.execute(DB, UID, PSW, 'purchase.order', 'write', res, vals)
-                print(pid, 'UPDATE - PURCHASE ORDER', res)
+                sock.execute(DB, UID, PSW, 'purchase.order', 'create_new_po_from_import', res)
+                logger.info(f"Old PO move to draft {res} {order_no}")
             else:
                 res = sock.execute(DB, UID, PSW, 'purchase.order', 'create', vals)
-                print(pid, 'CREATE - PURCHASE ORDER', res, order_no)
+                logger.info(f"CREATE - PURCHASE ORDER {res} {order_no}")
             if not data_pool:
                 break
         except Exception as e:
-            print(e)
+            logger.error(f"CREATE - PURCHASE ORDER {e}")
 
 
 
