@@ -20,11 +20,15 @@ def update_customer(pid, data_pool, write_ids, fiscal_ids, term_ids, carrier_ids
             parent=''
             data = data_pool.pop()
             customer_code = data.get('CUSTOMER-CODE', False)+'-'+data.get('SHIP-TO-CODE', False)
+            default_shipping = False
+            if data.get('SHIP-TO-CODE', False) and data.get('SHIP-TO-CODE', False) == '0001':
+                True
             parent = write_ids.get(data.get('CUSTOMER-CODE', False))
             city, state = [x.strip().lstrip() for x in data['SHIP-CITY-STATE'].split(',')]
             vals = {
                 'name': data['SHIP-1ST-NAME'].title(),
                 'type': 'delivery',
+                'default_shipping': default_shipping,
                 'corp_name': data['SHIP-2ND-NAME'].title(),
                 'street': data['SHIP-STREET'].title(),
                 'city': city.title(),
