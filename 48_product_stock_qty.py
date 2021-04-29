@@ -33,7 +33,7 @@ def update_product(pid, data_pool, product_ids, location_ids):
 
         except Exception as e:
             print(e)
-            break
+            #break
 
 
 def sync_products():

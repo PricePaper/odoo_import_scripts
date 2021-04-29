@@ -65,7 +65,6 @@ def update_product(pid, data_pool, create_ids, write_ids, uom_ids, category_ids,
 
 
             vals = {'name': data.get('ITEM-DESC').title(),
-                    'description_sale': data.get('ITEM-DESC').lower(),
                     'description_purchase': data.get('ITEM-DESCR2').lower(),
                     'default_code': default_code,
                     'categ_id': category_ids.get(data.get('PROD-CODE')),
