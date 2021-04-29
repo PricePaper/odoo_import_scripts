@@ -12,6 +12,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 import logging.handlers
 import os
 import time
+import ssl
 import multiprocessing_logging
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
