@@ -85,12 +85,12 @@ for line in input_file1:
 for code in data:
     try:
         if code not in uoms:
-            status = socket.execute(DB, 2, PSW, 'uom.uom', 'create', vals)
+            status = socket.execute(DB, 2, PSW, 'uom.uom', 'create', data[code])
             uoms.update({code:status})
             logger.info('Created UOM:{0}'.format(code))
         else:
             id = uoms.get(code)
-            val={'rounding': vals.get('rounding')}
+            val={'rounding': data.get(code).get('rounding')}
             status = socket.execute(DB, 2, PSW, 'uom.uom', 'write', id, val)
             logger.info('Updated UOM:{0}'.format(code))
     except Exception as e:

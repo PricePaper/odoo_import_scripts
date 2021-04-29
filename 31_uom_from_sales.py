@@ -12,6 +12,7 @@ import math
 import logging.handlers
 import os
 import time
+import ssl
 import multiprocessing_logging
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -35,7 +36,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 
-socket = xmlrpclib.ServerProxy(URL)
+socket = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
 
 
 
@@ -66,12 +67,12 @@ for line in input_file:
 for code in data:
     try:
         if code not in uoms:
-            status = socket.execute(DB, 2, PSW, 'uom.uom', 'create', vals)
+            status = socket.execute(DB, 2, PSW, 'uom.uom', 'create', data[code])
             uoms.update({code:status})
             logger.info('Created UOM:{0}'.format(code))
         else:
             id = uoms.get(code)
-            val={'rounding': vals.get('rounding')}
+            val={'rounding': data.get(code).get('rounding')}
             status = socket.execute(DB, 2, PSW, 'uom.uom', 'write', id, val)
             logger.info('Updated UOM:{0}'.format(code))
     except Exception as e:
