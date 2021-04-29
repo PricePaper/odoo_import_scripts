@@ -61,7 +61,7 @@ def create_do_invoice(pid, data_pool, partner_ids, term_ids, inv_account, line_a
 
 
 
-            vals = {'move_name': data.get('name')+'-done',
+            vals = {'move_name': data.get('name'),
                     'partner_id': partner_id,
                     'date_invoice': invoice_date,
                     'payment_term_id': term_id,
