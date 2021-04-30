@@ -111,11 +111,17 @@ def sync_invoices():
     #
     bill_vals={}
 
+    bill_exists = sock.execute(DB, UID, PSW, 'account.invoice', 'search_read', [('type', 'in', ('in_invoice', 'in_refund'))], ['number'])
+    bills = {bill['number']: bill['id'] for bill in bill_exists}
+    print(len(bills))
+
     fp1 = open('files/aplopen1.csv', 'r')
     csv_reader1 = csv.DictReader(fp1)
     for vals in csv_reader1:
         if vals.get('INV-BALANCE', '') and vals.get('INV-BALANCE', '') !='0':
             bill_no = vals.get('INV-NUM', '')
+            if bill_no in bills:
+                continue
             bill_vals[bill_no] = {'name':bill_no,
                                   'partner': vals.get('VEND-CODE', ''),
                                   'date': vals.get('INV-DATE', ''),
