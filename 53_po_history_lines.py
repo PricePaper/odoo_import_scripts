@@ -84,7 +84,7 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                             }
 
                     res = sock.execute(DB, UID, PSW, 'purchase.order.line', 'create', vals)
-                    if res % 100 != 0:
+                    if res % 1000 != 0:
                         logger.debug('Worker {0} Create - PURCHASE ORDER LINE {1} {2}'.format(pid, order_id, res))
                     else:
                         logger.info('Worker {0} Create - PURCHASE ORDER LINE {1} {2}'.format(pid, order_id, res))
