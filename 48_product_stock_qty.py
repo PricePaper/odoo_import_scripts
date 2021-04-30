@@ -85,18 +85,22 @@ def sync_products():
 
     process_Q = []
 
-    fp1 = open('files/ivlioh.csv', 'r')
-    # fp1 = open('ivlioh.csv', 'r')
-    csv_reader1 = csv.DictReader(fp1)
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
 
     all_locations = sock.execute(DB, UID, PSW, 'stock.location', 'search_read', [('usage', '=', 'internal')], ['id','name'])
     location_ids = {ele['name']:ele['id'] for ele in all_locations}
 
     default_codes = []
-    for vals in csv_reader1:
-        data_pool.append(vals)
-    fp1.close()
+
+    with open('files/ivlioh.csv', newline='') as fp1:
+        csv_reader1 = csv.DictReader(fp1)
+        for vals in csv_reader1:
+            # Skip the junk
+            whs, product = vals["WHSE-CODE"], vals["ITEM-CODE"]
+            if whs != "ZDEAD" and whs != "ZDEAD1":
+                data_pool.append(vals)
+            else:
+                logger.info(f'Skipping item {product}')
 
     domain = ['|', ('active', '=', False), ('active', '=', True)]
     res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code'])
