@@ -6,6 +6,7 @@ import csv
 import multiprocessing as mp
 import xmlrpc.client
 import logging.handlers
+import math
 
 # Get this using pip
 import multiprocessing_logging
@@ -42,7 +43,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 
 # ==================================== P R O D U C T S ====================================
 
-def update_product(pid, data_pool, product_ids, location_ids):
+def update_product(pid, data_pool, product_ids, location_ids, uoms):
     sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
     while data_pool:
         try:
@@ -52,10 +53,17 @@ def update_product(pid, data_pool, product_ids, location_ids):
             location = data.get('BIN-CODE')
             new_quantity = float(data.get('ON-HAND-QTY'))
             if product_ids.get(default_code) and location_ids.get(location) and new_quantity>0:
+                product_id = product_ids.get(default_code)[0]
 
-                vals = {'product_id': product_ids.get(default_code),
+                uom_rounding = uoms.get(product_ids.get(default_code)[1])
+
+                new_qty = new_quantity / uom_rounding
+                new_qty = round(new_qty)
+                new_qty = new_qty * uom_rounding
+
+                vals = {'product_id': product_id,
                         'location_id': location_ids.get(location),
-                        'new_quantity': round(new_quantity,2)
+                        'new_quantity': new_qty
                         }
 
                 id = sock.execute(DB, UID, PSW, 'stock.change.product.qty', 'create', vals)
@@ -103,14 +111,17 @@ def sync_products():
                 logger.info(f'Skipping item {product}')
 
     domain = ['|', ('active', '=', False), ('active', '=', True)]
-    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code'])
-    product_ids = {rec['default_code']: rec['id'] for rec in res}
+    res = sock.execute(DB, UID, PSW, 'product.product', 'search_read', domain, ['default_code', 'uom_id'])
+    product_ids = {rec['default_code']: [rec['id'], rec['uom_id'][1]] for rec in res}
+
+    uoms = sock.execute(DB, UID, PSW, 'uom.uom', 'search_read', [], ['rounding','name'])
+    uoms = {uom['name']: uom['rounding'] for uom in uoms}
 
     res = None
     for i in range(WORKERS):
         pid = "Worker-%d" % (i + 1)
         worker = mp.Process(name=pid, target=update_product,
-                            args=(pid, data_pool, product_ids, location_ids))
+                            args=(pid, data_pool, product_ids, location_ids, uoms))
         process_Q.append(worker)
         worker.start()
 

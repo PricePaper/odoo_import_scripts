@@ -119,7 +119,7 @@ def sync_invoices():
     csv_reader1 = csv.DictReader(fp1)
     for vals in csv_reader1:
         if vals.get('INV-BALANCE', '') and vals.get('INV-BALANCE', '') !='0':
-            bill_no = vals.get('INV-NUM', '')
+            bill_no = vals.get('INV-NUM', '')+'-checking'
             if bill_no in bills:
                 continue
             bill_vals[bill_no] = {'name':bill_no,
