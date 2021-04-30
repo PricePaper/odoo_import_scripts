@@ -77,10 +77,11 @@ def sync_products():
         csv_reader = csv.DictReader(fp)
 
         for vals in csv_reader:
-            if vals.get('ITEM-STATUS') and vals.get('ITEM-STATUS') == 'D':
-                data_pool.append(vals)
-                default_code = vals['ITEM-CODE']
-                default_codes.append(default_code)
+            if vals.get("DEF-WHSE-CODE") == "PRI001":
+                if vals.get('ITEM-STATUS') and vals.get('ITEM-STATUS') == 'D':
+                    data_pool.append(vals)
+                    default_code = vals['ITEM-CODE']
+                    default_codes.append(default_code)
 
     domain = [('default_code', 'in', default_codes), '|', ('active', '=', False), ('active', '=', True)]
 
