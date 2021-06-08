@@ -13,7 +13,7 @@ import multiprocessing_logging
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
 # Too many workers makes Odoo angry
-WORKERS = 4
+WORKERS = 1
 
 # Set up logging
 logger = logging.getLogger()
@@ -105,7 +105,7 @@ def sync_products():
         for vals in csv_reader1:
             # Skip the junk
             whs, product = vals["WHSE-CODE"], vals["ITEM-CODE"]
-            if whs != "ZDEAD" and whs != "ZDEAD1":
+            if whs == "PRI001":
                 data_pool.append(vals)
             else:
                 logger.info(f'Skipping item {product}')

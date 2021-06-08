@@ -7,6 +7,7 @@ import xmlrpc.client as xmlrpclib
 import queue
 
 from scriptconfig import URL, DB, UID, PSW, WORKERS
+WORKERS=2
 
 import logging.handlers
 import os

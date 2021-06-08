@@ -5,6 +5,7 @@ import csv
 import logging.handlers
 import multiprocessing as mp
 import os
+import ssl
 import queue
 import xmlrpc.client as xmlrpclib
 
@@ -38,7 +39,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 def update_sale_order(pid, data_pool, partner_ids, term_ids, user_ids, sale_rep_ids, misc_product_id, delivery_product_id, carrier_ids):
     while True:
         try:
-            sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+            sock = xmlrpclib.ServerProxy(URL, allow_none=True,context=ssl._create_unverified_context())
             data = data_pool.get_nowait()
         except queue.Empty:
             break
@@ -133,7 +134,7 @@ def sync_sale_orders():
     sale_rep_ids = manager.dict()
     user_ids = manager.dict()
 
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True,context=ssl._create_unverified_context())
 
     orders = {}
     existing_orders = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['name'])

@@ -75,7 +75,6 @@ def update_purchase_order_line(pid, data_pool, product_ids, uom_ids):
                             'product_uom': uom_id,
                             'price_unit': line.get('ORDR-UNIT-COST'),
                             'product_qty': line.get('ORDR-QTY'),
-                            'qty_recieved':line.get('ORDR-REC-QTY'),
                             'name': line.get('ITEM-DESC', ' ') + line.get('ITEM-DESCR', ' '),
                             'order_id': order_id,
                             'date_planned': line.get('ORDR-REC-DATE', ''),

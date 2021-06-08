@@ -3,6 +3,7 @@
 
 # -*- coding: utf-8 -*-
 
+import ssl
 import csv
 import logging.handlers
 import math
@@ -41,7 +42,7 @@ multiprocessing_logging.install_mp_handler(logger=logger)
 # ==================================== SALE ORDER LINE ====================================
 
 def update_sale_order_line(pid, data_pool, product_ids, uom_ids, order_tax_code_ids):
-    sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
+    sock = xmlrpc.client.ServerProxy(URL, allow_none=True,context=ssl._create_unverified_context())
     while data_pool:
         try:
             data = data_pool.pop()
@@ -140,7 +141,7 @@ def sync_sale_order_lines():
     data_pool = manager.list()
     process_Q = []
 
-    sock = xmlrpc.client.ServerProxy(URL, allow_none=True)
+    sock = xmlrpc.client.ServerProxy(URL, allow_none=True,context=ssl._create_unverified_context())
     res = sock.execute(DB, UID, PSW, 'sale.order', 'search_read', [], ['note'])
     order_ids = {inv_no: rec['id'] for rec in res for inv_no in (rec['note'] or '').split(',')}
 

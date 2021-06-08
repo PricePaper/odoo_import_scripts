@@ -5,6 +5,7 @@ import csv
 import logging.handlers
 import multiprocessing as mp
 import os
+import ssl
 import random
 import time
 import xmlrpc.client
@@ -41,7 +42,7 @@ from scriptconfig import URL, DB, UID, PSW, WORKERS
 
 def update_price_list(pid, data_pool, write_ids, uom_ids, partner_ids, pricelist_ids, shared_list, shared_dict,
                       product_ids, broken_uom):
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
     while data_pool:
         # try:
         data = data_pool.pop()
@@ -208,7 +209,7 @@ def sync_price_list():
 
     fp.close()
 
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True,context=ssl._create_unverified_context())
 
     res = sock.execute(DB, UID, PSW, 'product.pricelist', 'search_read', [], ['name'])
     pricelist_ids = {rec['name']: rec['id'] for rec in res}
@@ -246,7 +247,7 @@ def sync_price_list():
 
 
 def sync_partner_pricelist():
-    sock = xmlrpclib.ServerProxy(URL, allow_none=True)
+    sock = xmlrpclib.ServerProxy(URL, allow_none=True, context=ssl._create_unverified_context())
 
     res = sock.execute(DB, UID, PSW, 'res.partner', 'search_read',
                        [('customer', '=', True), '|', ('active', '=', False), ('active', '=', True)], ['customer_code'])
